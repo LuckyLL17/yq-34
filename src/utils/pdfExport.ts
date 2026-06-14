@@ -10,11 +10,16 @@ export interface ExportOptions {
 
 async function waitFontsReady(): Promise<void> {
   try {
-    if (document && (document as any).fonts && (document as any).fonts.ready) {
-      await (document as any).fonts.ready;
+    const doc = document as Document & {
+      fonts?: {
+        ready?: Promise<void>;
+      };
+    };
+    if (doc.fonts && doc.fonts.ready) {
+      await doc.fonts.ready;
       await new Promise((r) => setTimeout(r, 300));
     }
-  } catch (e) {
+  } catch {
     await new Promise((r) => setTimeout(r, 500));
   }
 }

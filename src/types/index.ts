@@ -45,3 +45,28 @@ export interface DrawingConfig {
   penWidth: number;
   drawingEnabled: boolean;
 }
+
+export interface CheckinRecord {
+  date: string;
+  charCount: number;
+  textType: TextType;
+  fontId: string;
+  timestamp: number;
+  posterThumbnail?: string;
+}
+
+export interface CheckinStats {
+  totalDays: number;
+  totalChars: number;
+  currentStreak: number;
+  longestStreak: number;
+}
+
+export interface CheckinStore {
+  records: Record<string, CheckinRecord>;
+  checkin: (record: Omit<CheckinRecord, 'timestamp'>) => void;
+  getRecordByDate: (date: string) => CheckinRecord | undefined;
+  getMonthRecords: (year: number, month: number) => Record<string, CheckinRecord>;
+  getStats: () => CheckinStats;
+  getMaxCharCount: () => number;
+}

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Settings, Eye, PenTool, ChevronDown } from 'lucide-react';
+import { Settings, Eye, PenTool, ChevronDown, Calendar as CalendarIcon, Sparkles } from 'lucide-react';
 import CopybookPreview from '@/components/Preview/CopybookPreview';
 import DrawingToolbar from '@/components/Preview/DrawingToolbar';
 import TextTypeSelector from '@/components/ConfigPanel/TextTypeSelector';
@@ -8,6 +8,9 @@ import FontSelector from '@/components/ConfigPanel/FontSelector';
 import GridConfig from '@/components/ConfigPanel/GridConfig';
 import ColorConfig from '@/components/ConfigPanel/ColorConfig';
 import ExportButton from '@/components/ExportButton';
+import CalendarView from '@/components/CalendarView';
+import PosterGenerator from '@/components/PosterGenerator';
+import type { CheckinRecord } from '@/types';
 
 interface SectionProps {
   title: string;
@@ -43,6 +46,24 @@ function ConfigSection({ title, icon, children, defaultOpen = true }: SectionPro
 
 export default function Home() {
   const previewRef = useRef<HTMLDivElement>(null);
+  const [posterOpen, setPosterOpen] = useState(false);
+  const [posterData, setPosterData] = useState<{
+    thumbnail?: string;
+    charCount?: number;
+    record?: CheckinRecord;
+  }>({});
+
+  const handleCheckinSuccess = (data: { thumbnail: string; charCount: number }) => {
+    setPosterData({ thumbnail: data.thumbnail, charCount: data.charCount });
+    setTimeout(() => setPosterOpen(true), 400);
+  };
+
+  const handleSelectDate = (date: string, record?: CheckinRecord) => {
+    if (record) {
+      setPosterData({ record });
+      setPosterOpen(true);
+    }
+  };
 
   return (
     <div
@@ -85,7 +106,10 @@ export default function Home() {
             </div>
 
             <div className="hidden sm:block">
-              <ExportButton previewRef={previewRef as React.RefObject<HTMLElement>} />
+              <ExportButton
+                previewRef={previewRef as React.RefObject<HTMLElement>}
+                onCheckinSuccess={handleCheckinSuccess}
+              />
             </div>
           </div>
         </div>
@@ -117,7 +141,10 @@ export default function Home() {
 
               <div className="sm:hidden">
                 <div className="sticky bottom-4">
-                  <ExportButton previewRef={previewRef as React.RefObject<HTMLElement>} />
+                  <ExportButton
+                    previewRef={previewRef as React.RefObject<HTMLElement>}
+                    onCheckinSuccess={handleCheckinSuccess}
+                  />
                 </div>
               </div>
             </div>
@@ -142,6 +169,36 @@ export default function Home() {
                 <li>• <strong>撤销清除</strong>：临摹时可随时撤销笔画或一键清除，方便反复练习</li>
               </ul>
             </div>
+
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#8B2E20] to-[#5d1e15] flex items-center justify-center">
+                    <CalendarIcon size={18} className="text-white" />
+                  </div>
+                  <div>
+                    <h3
+                      className="text-lg font-bold text-[#3D2C1F]"
+                      style={{ fontFamily: '"Noto Serif SC", "STSong", serif' }}
+                    >
+                      练字打卡日历
+                    </h3>
+                    <p className="text-xs text-stone-500">导出字帖自动打卡，点击日期查看海报</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setPosterData({});
+                    setPosterOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-[#8B2E20] bg-[#8B2E20]/10 rounded-lg hover:bg-[#8B2E20]/20 transition-colors"
+                >
+                  <Sparkles size={14} />
+                  生成海报
+                </button>
+              </div>
+              <CalendarView onSelectDate={handleSelectDate} />
+            </div>
           </section>
         </div>
       </main>
@@ -153,6 +210,14 @@ export default function Home() {
           </p>
         </div>
       </footer>
+
+      <PosterGenerator
+        open={posterOpen}
+        onClose={() => setPosterOpen(false)}
+        initialThumbnail={posterData.thumbnail}
+        initialCharCount={posterData.charCount}
+        initialRecord={posterData.record}
+      />
     </div>
   );
 }

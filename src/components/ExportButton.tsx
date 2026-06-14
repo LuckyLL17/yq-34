@@ -1,29 +1,84 @@
 import { useState, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { Download, RotateCcw, Loader2, FileDown, ChevronDown, Pencil, FileText } from 'lucide-react';
+import { RotateCcw, Loader2, FileDown, ChevronDown, Pencil, FileText, Check } from 'lucide-react';
 import { useCopybookStore } from '@/store/useCopybookStore';
+import { useCheckinStore, formatDate } from '@/store/useCheckinStore';
 import { exportCopybookToPdf } from '@/utils/pdfExport';
+import html2canvas from 'html2canvas';
 
 interface ExportButtonProps {
   previewRef: React.RefObject<HTMLElement>;
+  onCheckinSuccess?: (data: { thumbnail: string; charCount: number }) => void;
 }
 
 type ExportMode = 'original' | 'drawing';
 
-export default function ExportButton({ previewRef }: ExportButtonProps) {
+export default function ExportButton({ previewRef, onCheckinSuccess }: ExportButtonProps) {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
-  const { resetConfig, pagePaths } = useCopybookStore(
+  const [showSuccess, setShowSuccess] = useState(false);
+  const { resetConfig, pagePaths, textType, fontId, text } = useCopybookStore(
     useShallow((s) => ({
       resetConfig: s.resetConfig,
       pagePaths: s.pagePaths,
+      textType: s.textType,
+      fontId: s.fontId,
+      text: s.text,
     }))
   );
+  const { checkin } = useCheckinStore();
 
   const hasDrawing = useMemo(() => {
     return Object.values(pagePaths).some((p) => p && p.length > 0);
   }, [pagePaths]);
+
+  const charCount = useMemo(() => {
+    let count = 0;
+    for (const ch of text) {
+      if (ch !== '\n' && ch !== '\r' && ch !== '\t' && ch !== ' ') {
+        count++;
+      }
+    }
+    return count;
+  }, [text]);
+
+  const captureThumbnail = async (): Promise<string> => {
+    if (!previewRef.current) return '';
+    const firstPage = previewRef.current.querySelector<HTMLElement>('[data-page-index="0"]');
+    const target = firstPage || previewRef.current;
+    try {
+      const canvas = await html2canvas(target, {
+        scale: 0.5,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#FFFFFF',
+        logging: false,
+        width: target.scrollWidth,
+        height: target.scrollHeight,
+      });
+      return canvas.toDataURL('image/jpeg', 0.8);
+    } catch {
+      return '';
+    }
+  };
+
+  const handleCheckin = async () => {
+    const today = formatDate(new Date());
+    const thumbnail = await captureThumbnail();
+    checkin({
+      date: today,
+      charCount,
+      textType,
+      fontId,
+      posterThumbnail: thumbnail,
+    });
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 3000);
+    if (thumbnail && onCheckinSuccess) {
+      onCheckinSuccess({ thumbnail, charCount });
+    }
+  };
 
   const handleExport = async (mode: ExportMode) => {
     if (!previewRef.current || exporting) {
@@ -42,6 +97,7 @@ export default function ExportButton({ previewRef }: ExportButtonProps) {
       const includeDrawing = mode === 'drawing';
       const filename = includeDrawing ? '字帖-临摹版.pdf' : '字帖.pdf';
       await exportCopybookToPdf(previewRef.current, { filename, includeDrawing });
+      await handleCheckin();
     } catch (err) {
       console.error('导出失败:', err);
       const msg = err instanceof Error ? err.message : '未知错误';
@@ -69,6 +125,13 @@ export default function ExportButton({ previewRef }: ExportButtonProps) {
       </button>
 
       <div className="relative">
+        {showSuccess && (
+          <div className="absolute -top-12 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-green-500 text-white text-sm font-medium rounded-lg shadow-lg whitespace-nowrap z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+            <Check size={16} />
+            打卡成功！今日已练习 {charCount} 字
+          </div>
+        )}
+
         {exporting ? (
           <button
             disabled

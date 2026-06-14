@@ -12,7 +12,20 @@ interface CopybookPreviewProps {
 
 const A4_RATIO = 297 / 210;
 
-const selector = (s: any): CopybookConfig => ({
+const selector = (s: {
+  textType: CopybookConfig['textType'];
+  text: CopybookConfig['text'];
+  fontId: CopybookConfig['fontId'];
+  gridType: CopybookConfig['gridType'];
+  cellSize: CopybookConfig['cellSize'];
+  colsPerRow: CopybookConfig['colsPerRow'];
+  rows: CopybookConfig['rows'];
+  fontColor: CopybookConfig['fontColor'];
+  gridColor: CopybookConfig['gridColor'];
+  showDashed: CopybookConfig['showDashed'];
+  showTrace: CopybookConfig['showTrace'];
+  traceOpacity: CopybookConfig['traceOpacity'];
+}): CopybookConfig => ({
   textType: s.textType,
   text: s.text,
   fontId: s.fontId,
