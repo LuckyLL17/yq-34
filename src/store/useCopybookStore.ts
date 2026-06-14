@@ -1,10 +1,12 @@
 import { create } from 'zustand';
-import type { CopybookConfig, TextType, GridType, DrawingPath, DrawingConfig, PageDrawingPaths } from '@/types';
+import type { CopybookConfig, TextType, GridType, DrawingPath, DrawingConfig, PageDrawingPaths, DifficultyLevel, StrokeAnimationState } from '@/types';
 import { DEFAULT_TEXTS } from '@/utils/presetTexts';
 
 interface CopybookState extends CopybookConfig, DrawingConfig {
   pagePaths: PageDrawingPaths;
   pageRedoStack: PageDrawingPaths;
+  difficultyLevel: DifficultyLevel;
+  strokeAnimation: StrokeAnimationState;
   setTextType: (type: TextType) => void;
   setText: (text: string) => void;
   setFontId: (fontId: string) => void;
@@ -27,6 +29,9 @@ interface CopybookState extends CopybookConfig, DrawingConfig {
   redoPath: (pageIndex: number) => void;
   clearAllPaths: () => void;
   clearPagePaths: (pageIndex: number) => void;
+  setDifficultyLevel: (level: DifficultyLevel) => void;
+  openStrokeAnimation: (char: string) => void;
+  closeStrokeAnimation: () => void;
 }
 
 const DEFAULT_CONFIG: CopybookConfig & DrawingConfig = {
@@ -47,10 +52,42 @@ const DEFAULT_CONFIG: CopybookConfig & DrawingConfig = {
   drawingEnabled: false,
 };
 
+const DIFFICULTY_PRESETS: Record<DifficultyLevel, Partial<CopybookConfig>> = {
+  beginner: {
+    cellSize: 80,
+    colsPerRow: 8,
+    rows: 10,
+    gridType: 'mi',
+    showDashed: true,
+    showTrace: true,
+    traceOpacity: 0.4,
+  },
+  intermediate: {
+    cellSize: 64,
+    colsPerRow: 10,
+    rows: 14,
+    gridType: 'tian',
+    showDashed: true,
+    showTrace: true,
+    traceOpacity: 0.25,
+  },
+  advanced: {
+    cellSize: 48,
+    colsPerRow: 14,
+    rows: 18,
+    gridType: 'hui',
+    showDashed: false,
+    showTrace: false,
+    traceOpacity: 0.1,
+  },
+};
+
 export const useCopybookStore = create<CopybookState>((set, get) => ({
   ...DEFAULT_CONFIG,
   pagePaths: {},
   pageRedoStack: {},
+  difficultyLevel: 'intermediate',
+  strokeAnimation: { isOpen: false, char: '' },
 
   setTextType: (type) =>
     set(() => {
@@ -150,4 +187,20 @@ export const useCopybookStore = create<CopybookState>((set, get) => ({
         pageRedoStack: newPageRedoStack,
       };
     }),
+
+  setDifficultyLevel: (level) =>
+    set(() => ({
+      difficultyLevel: level,
+      ...DIFFICULTY_PRESETS[level],
+    })),
+
+  openStrokeAnimation: (char) =>
+    set({
+      strokeAnimation: { isOpen: true, char },
+    }),
+
+  closeStrokeAnimation: () =>
+    set((state) => ({
+      strokeAnimation: { ...state.strokeAnimation, isOpen: false },
+    })),
 }));

@@ -2,6 +2,8 @@ export type TextType = 'number' | 'chinese' | 'english';
 
 export type GridType = 'tian' | 'mi' | 'hui' | 'none';
 
+export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced';
+
 export interface FontOption {
   id: string;
   name: string;
@@ -70,3 +72,15 @@ export interface CheckinStore {
   getStats: () => CheckinStats;
   getMaxCharCount: () => number;
 }
+
+export interface DifficultyPreset {
+  label: string;
+  description: string;
+  config: Partial<CopybookConfig>;
+}
+
+export interface StrokeAnimationState {
+  isOpen: boolean;
+  char: string;
+}
+

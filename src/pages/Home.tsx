@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Settings, Eye, PenTool, ChevronDown, Calendar as CalendarIcon, Sparkles } from 'lucide-react';
+import { Settings, Eye, PenTool, ChevronDown, Calendar as CalendarIcon, Sparkles, Gauge } from 'lucide-react';
 import CopybookPreview from '@/components/Preview/CopybookPreview';
 import DrawingToolbar from '@/components/Preview/DrawingToolbar';
 import TextTypeSelector from '@/components/ConfigPanel/TextTypeSelector';
@@ -7,6 +7,8 @@ import TextInput from '@/components/ConfigPanel/TextInput';
 import FontSelector from '@/components/ConfigPanel/FontSelector';
 import GridConfig from '@/components/ConfigPanel/GridConfig';
 import ColorConfig from '@/components/ConfigPanel/ColorConfig';
+import DifficultySelector from '@/components/ConfigPanel/DifficultySelector';
+import StrokeAnimationModal from '@/components/StrokeAnimationModal';
 import ExportButton from '@/components/ExportButton';
 import CalendarView from '@/components/CalendarView';
 import PosterGenerator from '@/components/PosterGenerator';
@@ -131,6 +133,10 @@ export default function Home() {
                 <FontSelector />
               </ConfigSection>
 
+              <ConfigSection title="难度模式" icon={<Gauge size={16} strokeWidth={2} />}>
+                <DifficultySelector />
+              </ConfigSection>
+
               <ConfigSection title="字帖布局" icon={<Settings size={16} strokeWidth={2} />}>
                 <GridConfig />
               </ConfigSection>
@@ -161,6 +167,8 @@ export default function Home() {
             <div className="mt-6 p-4 bg-white/60 backdrop-blur-sm rounded-xl border border-stone-200/50">
               <h3 className="text-sm font-semibold text-[#3D2C1F] mb-2">💡 使用小贴士</h3>
               <ul className="text-xs text-stone-600 space-y-1.5 leading-relaxed">
+                <li>• <strong>笔画动画</strong>：鼠标悬停字帖上的汉字，点击即可查看笔顺动画，支持单步/循环播放和调速</li>
+                <li>• <strong>难度模式</strong>：一键切换入门/进阶/挑战三档，自动调整格子大小、参考线和范字显示</li>
                 <li>• <strong>临摹练字</strong>：点击上方工具栏的「临摹练字」开关，即可直接在字帖上用鼠标或触屏描红练习</li>
                 <li>• <strong>描红模式</strong>：开启后显示半透明的范字，适合初学者临摹练习</li>
                 <li>• <strong>无格线</strong>：适合进阶练习，专注于字形结构</li>
@@ -218,6 +226,8 @@ export default function Home() {
         initialCharCount={posterData.charCount}
         initialRecord={posterData.record}
       />
+
+      <StrokeAnimationModal />
     </div>
   );
 }
