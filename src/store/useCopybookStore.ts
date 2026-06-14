@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CopybookConfig, TextType, GridType, DrawingPath, DrawingConfig, PageDrawingPaths, DifficultyLevel, StrokeAnimationState } from '@/types';
+import type { CopybookConfig, TextType, GridType, DrawingPath, DrawingConfig, PageDrawingPaths, DifficultyLevel, StrokeAnimationState, HeaderFieldConfig, HeaderPosition } from '@/types';
 import { DEFAULT_TEXTS } from '@/utils/presetTexts';
 
 interface CopybookState extends CopybookConfig, DrawingConfig {
@@ -19,6 +19,13 @@ interface CopybookState extends CopybookConfig, DrawingConfig {
   setShowDashed: (show: boolean) => void;
   setShowTrace: (show: boolean) => void;
   setTraceOpacity: (opacity: number) => void;
+  setTitle: (title: string) => void;
+  setSubtitle: (subtitle: string) => void;
+  setNameField: (field: HeaderFieldConfig) => void;
+  setDateField: (field: HeaderFieldConfig) => void;
+  setClassField: (field: HeaderFieldConfig) => void;
+  setHeaderPosition: (position: HeaderPosition) => void;
+  setShowLineNumbers: (show: boolean) => void;
   updateConfig: (partial: Partial<CopybookConfig>) => void;
   resetConfig: () => void;
   setPenColor: (color: string) => void;
@@ -47,6 +54,13 @@ const DEFAULT_CONFIG: CopybookConfig & DrawingConfig = {
   showDashed: true,
   showTrace: true,
   traceOpacity: 0.25,
+  title: '',
+  subtitle: '',
+  nameField: { label: '姓名', visible: true },
+  dateField: { label: '日期', visible: true },
+  classField: { label: '班级', visible: false },
+  headerPosition: 'center',
+  showLineNumbers: false,
   penColor: '#1a1a1a',
   penWidth: 3,
   drawingEnabled: false,
@@ -116,6 +130,13 @@ export const useCopybookStore = create<CopybookState>((set, get) => ({
   setShowDashed: (showDashed) => set({ showDashed }),
   setShowTrace: (showTrace) => set({ showTrace }),
   setTraceOpacity: (traceOpacity) => set({ traceOpacity }),
+  setTitle: (title) => set({ title }),
+  setSubtitle: (subtitle) => set({ subtitle }),
+  setNameField: (nameField) => set({ nameField }),
+  setDateField: (dateField) => set({ dateField }),
+  setClassField: (classField) => set({ classField }),
+  setHeaderPosition: (headerPosition) => set({ headerPosition }),
+  setShowLineNumbers: (showLineNumbers) => set({ showLineNumbers }),
   updateConfig: (partial) => set(partial),
   resetConfig: () => set({ ...DEFAULT_CONFIG, pagePaths: {}, pageRedoStack: {} }),
 

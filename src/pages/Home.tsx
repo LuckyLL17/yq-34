@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Settings, Eye, PenTool, ChevronDown, Calendar as CalendarIcon, Sparkles, Gauge } from 'lucide-react';
+import { Settings, Eye, PenTool, ChevronDown, Calendar as CalendarIcon, Sparkles, Gauge, Type } from 'lucide-react';
 import CopybookPreview from '@/components/Preview/CopybookPreview';
 import DrawingToolbar from '@/components/Preview/DrawingToolbar';
 import TextTypeSelector from '@/components/ConfigPanel/TextTypeSelector';
@@ -8,6 +8,7 @@ import FontSelector from '@/components/ConfigPanel/FontSelector';
 import GridConfig from '@/components/ConfigPanel/GridConfig';
 import ColorConfig from '@/components/ConfigPanel/ColorConfig';
 import DifficultySelector from '@/components/ConfigPanel/DifficultySelector';
+import HeaderConfig from '@/components/ConfigPanel/HeaderConfig';
 import StrokeAnimationModal from '@/components/StrokeAnimationModal';
 import FontCompareModal from '@/components/FontCompareModal';
 import ExportButton from '@/components/ExportButton';
@@ -141,6 +142,10 @@ export default function Home() {
 
               <ConfigSection title="字帖布局" icon={<Settings size={16} strokeWidth={2} />}>
                 <GridConfig />
+              </ConfigSection>
+
+              <ConfigSection title="页眉设置" icon={<Type size={16} strokeWidth={2} />}>
+                <HeaderConfig />
               </ConfigSection>
 
               <ConfigSection title="颜色设置" icon={<Eye size={16} strokeWidth={2} />} defaultOpen={false}>

@@ -11,6 +11,13 @@ export interface FontOption {
   applicableTypes: TextType[];
 }
 
+export type HeaderPosition = 'left' | 'center' | 'right';
+
+export interface HeaderFieldConfig {
+  label: string;
+  visible: boolean;
+}
+
 export interface CopybookConfig {
   textType: TextType;
   text: string;
@@ -24,6 +31,13 @@ export interface CopybookConfig {
   showDashed: boolean;
   showTrace: boolean;
   traceOpacity: number;
+  title: string;
+  subtitle: string;
+  nameField: HeaderFieldConfig;
+  dateField: HeaderFieldConfig;
+  classField: HeaderFieldConfig;
+  headerPosition: HeaderPosition;
+  showLineNumbers: boolean;
 }
 
 export interface PresetText {
