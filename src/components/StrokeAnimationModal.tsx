@@ -22,18 +22,118 @@ export default function StrokeAnimationModal() {
   const containerRef = useRef<HTMLDivElement>(null);
   const writerRef = useRef<HanziWriter | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [currentStroke, setCurrentStroke] = useState(0);
   const [totalStrokes, setTotalStrokes] = useState(0);
   const [speed, setSpeed] = useState(1);
   const [isLooping, setIsLooping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const loopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const strokeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isPausedRef = useRef(false);
+  const pendingStrokeRef = useRef(0);
+  const isAnimatingRef = useRef(false);
 
   const char = strokeAnimation.char;
   const isOpen = strokeAnimation.isOpen;
 
+  const clearAllTimers = useCallback(() => {
+    if (loopTimeoutRef.current) {
+      clearTimeout(loopTimeoutRef.current);
+      loopTimeoutRef.current = null;
+    }
+    if (strokeIntervalRef.current) {
+      clearInterval(strokeIntervalRef.current);
+      strokeIntervalRef.current = null;
+    }
+  }, []);
+
+  const renderStrokesUpTo = useCallback((target: number) => {
+    if (!writerRef.current) return;
+    const w = writerRef.current as unknown as {
+      hideCharacter: () => void;
+      showCharacter: () => void;
+      hideStroke: (i: number) => void;
+      showStroke: (i: number) => void;
+    };
+    w.hideCharacter();
+    if (target > 0) {
+      w.showCharacter();
+      for (let i = target; i < totalStrokes; i++) {
+        w.hideStroke(i);
+      }
+    }
+  }, [totalStrokes]);
+
+  const animateFromStroke = useCallback((startStroke: number) => {
+    if (!writerRef.current) return;
+
+    clearAllTimers();
+    isAnimatingRef.current = true;
+    setIsAnimating(true);
+    setIsPaused(false);
+    isPausedRef.current = false;
+
+    let strokeIdx = startStroke;
+    pendingStrokeRef.current = startStroke;
+    setCurrentStroke(startStroke);
+
+    if (startStroke === 0) {
+      renderStrokesUpTo(0);
+    }
+
+    const w = writerRef.current as unknown as {
+      animateStroke: (i: number, options: { onComplete?: () => void }) => void;
+    };
+
+    const animateNext = () => {
+      if (!writerRef.current || !isAnimatingRef.current) return;
+
+      if (isPausedRef.current) {
+        pendingStrokeRef.current = strokeIdx;
+        return;
+      }
+
+      if (strokeIdx >= totalStrokes) {
+        isAnimatingRef.current = false;
+        setIsAnimating(false);
+        if (isLooping) {
+          loopTimeoutRef.current = setTimeout(() => {
+            animateFromStroke(0);
+          }, 500);
+        }
+        return;
+      }
+
+      const currentIdx = strokeIdx;
+      w.animateStroke(currentIdx, {
+        onComplete: () => {
+          if (!isAnimatingRef.current || isPausedRef.current) return;
+          strokeIdx++;
+          pendingStrokeRef.current = strokeIdx;
+          setCurrentStroke(strokeIdx);
+          if (strokeIdx < totalStrokes) {
+            loopTimeoutRef.current = setTimeout(animateNext, 150);
+          } else {
+            animateNext();
+          }
+        },
+      });
+    };
+
+    if (startStroke < totalStrokes) {
+      animateNext();
+    }
+  }, [totalStrokes, isLooping, clearAllTimers, renderStrokesUpTo]);
+
   const initWriter = useCallback(() => {
     if (!containerRef.current || !char || !isOpen) return;
+
+    clearAllTimers();
+    isAnimatingRef.current = false;
+    isPausedRef.current = false;
+    pendingStrokeRef.current = 0;
 
     if (writerRef.current) {
       writerRef.current = null;
@@ -41,6 +141,8 @@ export default function StrokeAnimationModal() {
     containerRef.current.innerHTML = '';
     setError(null);
     setCurrentStroke(0);
+    setIsAnimating(false);
+    setIsPaused(false);
 
     try {
       const writer = HanziWriter.create(containerRef.current, char, {
@@ -82,14 +184,17 @@ export default function StrokeAnimationModal() {
       console.error('初始化 HanziWriter 失败:', err);
       setError('初始化失败，请重试');
     }
-  }, [char, isOpen, speed]);
+  }, [char, isOpen, speed, clearAllTimers]);
 
   useEffect(() => {
     if (isOpen) {
       const timer = setTimeout(initWriter, 50);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        clearAllTimers();
+      };
     }
-  }, [isOpen, initWriter]);
+  }, [isOpen, initWriter, clearAllTimers]);
 
   useEffect(() => {
     if (writerRef.current) {
@@ -99,77 +204,62 @@ export default function StrokeAnimationModal() {
 
   useEffect(() => {
     return () => {
-      if (loopTimeoutRef.current) {
-        clearTimeout(loopTimeoutRef.current);
-      }
+      clearAllTimers();
+      isAnimatingRef.current = false;
+      isPausedRef.current = false;
     };
-  }, []);
+  }, [clearAllTimers]);
 
   const handlePlay = () => {
     if (!writerRef.current || error) return;
-    if (isAnimating) {
-      setIsAnimating(false);
+
+    if (isAnimating && isPaused) {
+      isPausedRef.current = false;
+      setIsPaused(false);
+      const continueFrom = pendingStrokeRef.current;
+      animateFromStroke(continueFrom);
       return;
     }
-    setIsAnimating(true);
-    const animate = () => {
-      if (!writerRef.current) return;
-      setCurrentStroke(0);
-      writerRef.current.animateCharacter({
-        onComplete: () => {
-          setCurrentStroke(totalStrokes);
-          if (isLooping) {
-            loopTimeoutRef.current = setTimeout(() => {
-              if (!writerRef.current) return;
-              writerRef.current.hideCharacter();
-              setTimeout(animate, 200);
-            }, 500);
-          } else {
-            setIsAnimating(false);
-          }
-        },
-      });
-      let strokeIdx = 0;
-      const interval = setInterval(() => {
-        strokeIdx++;
-        setCurrentStroke(Math.min(strokeIdx, totalStrokes));
-        if (strokeIdx >= totalStrokes) {
-          clearInterval(interval);
-        }
-      }, (800 * speed) + 200);
-    };
-    animate();
+
+    if (isAnimating && !isPaused) {
+      isPausedRef.current = true;
+      setIsPaused(true);
+      return;
+    }
+
+    const startFrom = currentStroke >= totalStrokes ? 0 : currentStroke;
+    animateFromStroke(startFrom);
   };
 
   const handlePrevStroke = () => {
     if (!writerRef.current || error) return;
-    if (isAnimating) setIsAnimating(false);
-    if (loopTimeoutRef.current) {
-      clearTimeout(loopTimeoutRef.current);
-    }
+    clearAllTimers();
+    isAnimatingRef.current = false;
+    isPausedRef.current = false;
+    setIsAnimating(false);
+    setIsPaused(false);
+
     const target = Math.max(0, currentStroke - 1);
     setCurrentStroke(target);
-    writerRef.current.hideCharacter();
-    if (target > 0) {
-      writerRef.current.showCharacter();
-      const w = writerRef.current as unknown as { hideStroke: (i: number) => void };
-      for (let i = target; i < totalStrokes; i++) {
-        w.hideStroke(i);
-      }
-    }
+    renderStrokesUpTo(target);
   };
 
   const handleNextStroke = () => {
     if (!writerRef.current || error) return;
-    if (isAnimating) setIsAnimating(false);
-    if (loopTimeoutRef.current) {
-      clearTimeout(loopTimeoutRef.current);
-    }
+    clearAllTimers();
+    isAnimatingRef.current = false;
+    isPausedRef.current = false;
+    setIsAnimating(false);
+    setIsPaused(false);
+
     const target = Math.min(totalStrokes, currentStroke + 1);
     setCurrentStroke(target);
     if (target > 0) {
-      writerRef.current.showCharacter();
-      const w = writerRef.current as unknown as { hideStroke: (i: number) => void; animateStroke: (i: number) => void };
+      renderStrokesUpTo(target);
+      const w = writerRef.current as unknown as {
+        hideStroke: (i: number) => void;
+        animateStroke: (i: number) => void;
+      };
       for (let i = target; i < totalStrokes; i++) {
         w.hideStroke(i);
       }
@@ -179,19 +269,42 @@ export default function StrokeAnimationModal() {
 
   const handleReset = () => {
     if (!writerRef.current || error) return;
-    if (isAnimating) setIsAnimating(false);
-    if (loopTimeoutRef.current) {
-      clearTimeout(loopTimeoutRef.current);
-    }
-    writerRef.current.hideCharacter();
+    clearAllTimers();
+    isAnimatingRef.current = false;
+    isPausedRef.current = false;
+    setIsAnimating(false);
+    setIsPaused(false);
+    pendingStrokeRef.current = 0;
+    renderStrokesUpTo(0);
     setCurrentStroke(0);
   };
 
+  const handleSpeedChange = (newSpeed: number) => {
+    if (speed === newSpeed) return;
+    const wasPlaying = isAnimating && !isPaused;
+    const currentPos = isAnimating ? pendingStrokeRef.current : currentStroke;
+
+    clearAllTimers();
+    isAnimatingRef.current = false;
+    isPausedRef.current = false;
+    setIsAnimating(false);
+    setIsPaused(false);
+
+    setSpeed(newSpeed);
+
+    setTimeout(() => {
+      if (wasPlaying && writerRef.current) {
+        animateFromStroke(currentPos);
+      }
+    }, 50);
+  };
+
   const handleClose = () => {
-    if (isAnimating) setIsAnimating(false);
-    if (loopTimeoutRef.current) {
-      clearTimeout(loopTimeoutRef.current);
-    }
+    clearAllTimers();
+    isAnimatingRef.current = false;
+    isPausedRef.current = false;
+    setIsAnimating(false);
+    setIsPaused(false);
     closeStrokeAnimation();
   };
 
@@ -298,13 +411,13 @@ export default function StrokeAnimationModal() {
               onClick={handlePlay}
               disabled={!!error}
               className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
-                isAnimating
+                isAnimating && !isPaused
                   ? 'bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-500/30'
                   : 'bg-gradient-to-br from-[#8B2E20] to-[#5d1e15] hover:from-[#7a281c] hover:to-[#4d1912] shadow-[#8B2E20]/30'
               }`}
-              title={isAnimating ? '暂停' : '播放'}
+              title={isAnimating && !isPaused ? '暂停' : '播放'}
             >
-              {isAnimating ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
+              {isAnimating && !isPaused ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
             </button>
             <button
               onClick={handleNextStroke}
@@ -337,7 +450,7 @@ export default function StrokeAnimationModal() {
               {SPEED_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
-                  onClick={() => setSpeed(opt.value)}
+                  onClick={() => handleSpeedChange(opt.value)}
                   disabled={!!error}
                   className={`px-2 py-2 rounded-lg text-xs font-medium transition-all disabled:opacity-40 ${
                     speed === opt.value
@@ -351,7 +464,14 @@ export default function StrokeAnimationModal() {
             </div>
           </div>
 
-          {isLooping && (
+          {isPaused && (
+            <div className="mt-3 flex items-center justify-center gap-2 text-xs text-amber-600">
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              已暂停
+            </div>
+          )}
+
+          {isLooping && !isPaused && (
             <div className="mt-3 flex items-center justify-center gap-2 text-xs text-[#8B2E20]">
               <span className="w-2 h-2 rounded-full bg-[#8B2E20] animate-pulse" />
               循环播放中
