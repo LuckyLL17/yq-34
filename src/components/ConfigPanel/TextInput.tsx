@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Sparkles } from 'lucide-react';
 import { useCopybookStore } from '@/store/useCopybookStore';
 import { getPresetsByType } from '@/utils/presetTexts';
@@ -8,14 +8,32 @@ export default function TextInput() {
   const text = useCopybookStore((s) => s.text);
   const setText = useCopybookStore((s) => s.setText);
   const [showPresets, setShowPresets] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const presets = getPresetsByType(textType);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setShowPresets(false);
+      }
+    }
+    if (showPresets) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showPresets]);
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <label className="block text-sm font-semibold text-stone-700">文字内容</label>
-        <div className="relative">
+        <div className="relative" ref={containerRef}>
           <button
             onClick={() => setShowPresets(!showPresets)}
             className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-[#8B2E20] bg-[#8B2E20]/5 rounded-md hover:bg-[#8B2E20]/10 transition-colors"
@@ -28,9 +46,9 @@ export default function TextInput() {
             />
           </button>
           {showPresets && (
-            <div className="absolute right-0 top-full mt-1 z-20 w-56 max-h-60 overflow-y-auto bg-white border border-stone-200 rounded-lg shadow-xl py-1">
+            <div className="absolute right-0 top-full mt-1.5 z-30 w-72 max-h-80 overflow-y-auto bg-white border border-stone-200 rounded-xl shadow-2xl py-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
               {presets.length === 0 ? (
-                <p className="px-3 py-2 text-xs text-stone-400">暂无预设</p>
+                <p className="px-4 py-3 text-xs text-stone-400">暂无预设</p>
               ) : (
                 presets.map((p) => (
                   <button
@@ -39,9 +57,13 @@ export default function TextInput() {
                       setText(p.value);
                       setShowPresets(false);
                     }}
-                    className="block w-full text-left px-3 py-2 text-sm text-stone-600 hover:bg-stone-50 hover:text-[#8B2E20] transition-colors"
+                    className="block w-full text-left px-4 py-2.5 text-sm text-stone-700 hover:bg-[#8B2E20]/5 hover:text-[#8B2E20] transition-colors border-b border-stone-50 last:border-b-0"
                   >
-                    {p.label}
+                    <div className="font-medium mb-0.5">{p.label}</div>
+                    <div className="text-xs text-stone-400 truncate">
+                      {p.value.slice(0, 30)}
+                      {p.value.length > 30 ? '...' : ''}
+                    </div>
                   </button>
                 ))
               )}

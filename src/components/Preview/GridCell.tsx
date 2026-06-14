@@ -23,15 +23,14 @@ export default function GridCell({
   showTrace,
   traceOpacity,
 }: GridCellProps) {
-  const fontSize = Math.floor(cellSize * 0.75);
+  const fontSize = Math.floor(cellSize * 0.78);
+  const s = cellSize;
+  const borderStyle = `1px solid ${gridColor}`;
+  const dashedStyle = showDashed
+    ? `1px dashed ${gridColor}80`
+    : 'none';
 
   const renderGrid = () => {
-    const s = cellSize;
-    const borderStyle = `1px solid ${gridColor}`;
-    const dashedStyle = showDashed
-      ? `1px dashed ${gridColor}80`
-      : 'none';
-
     if (gridType === 'none') {
       return null;
     }
@@ -68,11 +67,6 @@ export default function GridCell({
     }
 
     if (gridType === 'mi') {
-      const diagStyle = showDashed
-        ? {
-            background: `linear-gradient(to right, transparent calc(50% - 0.5px), ${gridColor}80 calc(50% - 0.5px), ${gridColor}80 calc(50% + 0.5px), transparent calc(50% + 0.5px))`,
-          }
-        : {};
       return (
         <>
           <div
@@ -97,14 +91,6 @@ export default function GridCell({
               right: 0,
               height: 0,
               borderTop: dashedStyle,
-            }}
-          />
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              ...diagStyle,
-              transform: 'rotate(45deg)',
-              opacity: showDashed ? 0.6 : 0,
             }}
           />
           <div
@@ -136,8 +122,8 @@ export default function GridCell({
     }
 
     if (gridType === 'hui') {
-      const inner = cellSize * 0.5;
-      const offset = (cellSize - inner) / 2;
+      const inner = s * 0.5;
+      const offset = (s - inner) / 2;
       return (
         <>
           <div
@@ -181,10 +167,12 @@ export default function GridCell({
     return null;
   };
 
+  const displayChar = char === ' ' ? '\u00A0' : char;
+
   return (
     <div
       className="relative inline-block shrink-0"
-      style={{ width: cellSize, height: cellSize }}
+      style={{ width: s, height: s }}
     >
       {renderGrid()}
 
@@ -199,7 +187,7 @@ export default function GridCell({
             lineHeight: 1,
           }}
         >
-          {char}
+          {displayChar}
         </span>
       )}
 
@@ -213,7 +201,7 @@ export default function GridCell({
           visibility: showTrace ? 'hidden' : 'visible',
         }}
       >
-        {char}
+        {displayChar}
       </span>
     </div>
   );

@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Download, FileText, RotateCcw, Loader2 } from 'lucide-react';
 import { useCopybookStore } from '@/store/useCopybookStore';
-import { exportToPdf, exportToPdfA4 } from '@/utils/pdfExport';
+import { exportCopybookToPdf } from '@/utils/pdfExport';
 
 interface ExportButtonProps {
   previewRef: React.RefObject<HTMLElement>;
@@ -11,19 +11,30 @@ export default function ExportButton({ previewRef }: ExportButtonProps) {
   const [exporting, setExporting] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const resetConfig = useCopybookStore((s) => s.resetConfig);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const handleExport = async (a4 = false) => {
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    }
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMenu]);
+
+  const handleExport = async () => {
     if (!previewRef.current || exporting) return;
 
     setExporting(true);
     setShowMenu(false);
     try {
       await new Promise((resolve) => setTimeout(resolve, 100));
-      if (a4) {
-        await exportToPdfA4(previewRef.current);
-      } else {
-        await exportToPdf(previewRef.current);
-      }
+      await exportCopybookToPdf(previewRef.current);
     } catch (err) {
       console.error('导出失败:', err);
       alert('导出失败，请重试');
@@ -48,7 +59,7 @@ export default function ExportButton({ previewRef }: ExportButtonProps) {
         重置配置
       </button>
 
-      <div className="relative">
+      <div className="relative" ref={menuRef}>
         <button
           onClick={() => setShowMenu(!showMenu)}
           disabled={exporting}
@@ -76,25 +87,17 @@ export default function ExportButton({ previewRef }: ExportButtonProps) {
         </button>
 
         {showMenu && !exporting && (
-          <div className="absolute right-0 bottom-full mb-2 w-52 bg-white border border-stone-200 rounded-lg shadow-xl py-1.5 z-30 animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-stone-200 rounded-lg shadow-2xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
             <button
-              onClick={() => handleExport(false)}
-              className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-stone-700 hover:bg-[#8B2E20]/5 hover:text-[#8B2E20] transition-colors"
+              onClick={handleExport}
+              className="flex items-center gap-3 w-full px-4 py-3 text-sm text-stone-700 hover:bg-[#8B2E20]/5 hover:text-[#8B2E20] transition-colors"
             >
-              <FileText size={16} />
-              <div className="text-left">
-                <p className="font-medium">原始尺寸导出</p>
-                <p className="text-xs text-stone-400">按字帖实际大小</p>
+              <div className="w-9 h-9 rounded-lg bg-[#8B2E20]/10 flex items-center justify-center shrink-0">
+                <FileText size={18} className="text-[#8B2E20]" />
               </div>
-            </button>
-            <button
-              onClick={() => handleExport(true)}
-              className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-stone-700 hover:bg-[#8B2E20]/5 hover:text-[#8B2E20] transition-colors border-t border-stone-100"
-            >
-              <FileText size={16} />
-              <div className="text-left">
-                <p className="font-medium">A4 纸张导出</p>
-                <p className="text-xs text-stone-400">自动适配 A4 打印</p>
+              <div className="text-left flex-1 min-w-0">
+                <p className="font-semibold">A4 分页导出</p>
+                <p className="text-xs text-stone-500 mt-0.5">每页撑满A4纸，自动分页</p>
               </div>
             </button>
           </div>

@@ -25,8 +25,8 @@ const DEFAULT_CONFIG: CopybookConfig = {
   fontId: 'kaiti',
   gridType: 'tian',
   cellSize: 64,
-  colsPerRow: 8,
-  rows: 10,
+  colsPerRow: 10,
+  rows: 14,
   fontColor: '#3D2C1F',
   gridColor: '#D4A574',
   showDashed: true,
@@ -38,12 +38,18 @@ export const useCopybookStore = create<CopybookState>((set) => ({
   ...DEFAULT_CONFIG,
 
   setTextType: (type) =>
-    set((state) => {
-      const newText = state.text || DEFAULT_TEXTS[type];
+    set(() => {
+      let fontId = 'kaiti';
+      if (type === 'english') fontId = 'serif';
+      else if (type === 'number') fontId = 'kaiti';
+      else fontId = 'kaiti';
+
       return {
         textType: type,
-        text: newText,
-        fontId: type === 'english' ? 'serif' : type === 'number' ? 'kaiti' : 'kaiti',
+        text: DEFAULT_TEXTS[type],
+        fontId,
+        colsPerRow: type === 'english' ? 14 : type === 'number' ? 12 : 10,
+        rows: 14,
       };
     }),
 
@@ -51,8 +57,8 @@ export const useCopybookStore = create<CopybookState>((set) => ({
   setFontId: (fontId) => set({ fontId }),
   setGridType: (gridType) => set({ gridType }),
   setCellSize: (cellSize) => set({ cellSize: Math.max(32, Math.min(120, cellSize)) }),
-  setColsPerRow: (colsPerRow) => set({ colsPerRow: Math.max(4, Math.min(16, colsPerRow)) }),
-  setRows: (rows) => set({ rows: Math.max(4, Math.min(20, rows)) }),
+  setColsPerRow: (colsPerRow) => set({ colsPerRow: Math.max(4, Math.min(20, colsPerRow)) }),
+  setRows: (rows) => set({ rows: Math.max(4, Math.min(30, rows)) }),
   setFontColor: (fontColor) => set({ fontColor }),
   setGridColor: (gridColor) => set({ gridColor }),
   setShowDashed: (showDashed) => set({ showDashed }),
