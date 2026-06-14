@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Flame, Target, Calendar as CalendarIcon, Award } from 'lucide-react';
-import { useShallow } from 'zustand/react/shallow';
 import { useCheckinStore, formatDate } from '@/store/useCheckinStore';
 import type { CheckinRecord } from '@/types';
 
@@ -12,19 +11,13 @@ const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 
 export default function CalendarView({ onSelectDate }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(() => new Date());
-  const { getMonthRecords, getStats, getMaxCharCount } = useCheckinStore(
-    useShallow((s) => ({
-      getMonthRecords: s.getMonthRecords,
-      getStats: s.getStats,
-      getMaxCharCount: s.getMaxCharCount,
-    }))
-  );
+  const records = useCheckinStore((s) => s.records);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
-  const stats = getStats();
-  const monthRecords = getMonthRecords(year, month);
-  const maxCount = Math.max(getMaxCharCount(), 1);
+  const stats = useMemo(() => useCheckinStore.getState().getStats(), [records]);
+  const monthRecords = useMemo(() => useCheckinStore.getState().getMonthRecords(year, month), [records, year, month]);
+  const maxCount = useMemo(() => Math.max(useCheckinStore.getState().getMaxCharCount(), 1), [records]);
 
   const today = useMemo(() => formatDate(new Date()), []);
 

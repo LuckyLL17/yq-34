@@ -46,18 +46,19 @@ export default function ExportButton({ previewRef, onCheckinSuccess }: ExportBut
   const captureThumbnail = async (): Promise<string> => {
     if (!previewRef.current) return '';
     const firstPage = previewRef.current.querySelector<HTMLElement>('[data-page-index="0"]');
-    const target = firstPage || previewRef.current;
+    if (!firstPage) return '';
+    const gridContainer = firstPage.querySelector<HTMLElement>('.flex.flex-col.items-center.justify-center.relative');
+    const target = gridContainer || firstPage;
     try {
+      await new Promise((r) => setTimeout(r, 200));
       const canvas = await html2canvas(target, {
-        scale: 0.5,
+        scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#FFFFFF',
         logging: false,
-        width: target.scrollWidth,
-        height: target.scrollHeight,
       });
-      return canvas.toDataURL('image/jpeg', 0.8);
+      return canvas.toDataURL('image/jpeg', 0.92);
     } catch {
       return '';
     }

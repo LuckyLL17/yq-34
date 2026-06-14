@@ -1,9 +1,8 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
-import { X, Download, RefreshCw, QrCode, Sparkles, Quote } from 'lucide-react';
-import { useShallow } from 'zustand/react/shallow';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
-import { useCheckinStore, formatDate } from '@/store/useCheckinStore';
-import { getFontById } from '@/utils/fonts';
+import QRCode from 'qrcode';
+import { Calendar, Flame, Download, Sparkles } from 'lucide-react';
+import { useCheckinStore, formatDate, parseDate } from '@/store/useCheckinStore';
 import type { CheckinRecord } from '@/types';
 
 interface PosterGeneratorProps {
@@ -15,25 +14,20 @@ interface PosterGeneratorProps {
 }
 
 const SLOGANS = [
-  '笔走龙蛇，墨韵千秋',
-  '一日一练，字如其人',
-  '静心练字，修身养性',
-  '落笔生花，翰墨飘香',
-  '持之以恒，铁杵成针',
-  '墨海扬帆，笔耕不辍',
-  '笔下生风，字里乾坤',
-  '练字修心，宁静致远',
-  '书道千秋，墨香万里',
-  '日练一字，岁有所成',
+  '一笔一画，皆是修行',
+  '字如其人，立品为先',
+  '心静如水，字秀如花',
+  '日日临池，笔耕不辍',
+  '翰墨飘香，丹青溢彩',
+  '落笔生花，挥毫写意',
+  '习字修心，练字养性',
+  '铁画银钩，入木三分',
 ];
 
-function getRandomSlogan() {
-  return SLOGANS[Math.floor(Math.random() * SLOGANS.length)];
-}
-
-function formatChineseDate(dateStr: string) {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return `${y}年${m}月${d}日`;
+function formatDisplayDate(date: string) {
+  const d = parseDate(date);
+  const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 · ${weekdays[d.getDay()]}`;
 }
 
 export default function PosterGenerator({
@@ -44,41 +38,79 @@ export default function PosterGenerator({
   initialRecord,
 }: PosterGeneratorProps) {
   const posterRef = useRef<HTMLDivElement>(null);
-  const [slogan, setSlogan] = useState(getRandomSlogan());
+  const records = useCheckinStore((s) => s.records);
+  const stats = useMemo(() => useCheckinStore.getState().getStats(), [records]);
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [downloading, setDownloading] = useState(false);
-  const { getStats } = useCheckinStore(
-    useShallow((s) => ({ getStats: s.getStats }))
-  );
 
   const today = formatDate(new Date());
-  const stats = getStats();
 
-  const record = useMemo(() => {
+  const record: CheckinRecord = useMemo(() => {
     if (initialRecord) return initialRecord;
+    const thumb = initialThumbnail ?? '';
+    const cc = initialCharCount ?? 0;
+    const existing = useCheckinStore.getState().getRecordByDate(today);
+    if (existing) {
+      return { ...existing, posterThumbnail: thumb || existing.posterThumbnail };
+    }
     return {
       date: today,
-      charCount: initialCharCount || 0,
-      textType: 'chinese' as const,
-      fontId: 'kaiti',
+      charCount: cc,
+      textType: 'chinese',
+      fontId: '',
       timestamp: Date.now(),
-      posterThumbnail: initialThumbnail,
+      posterThumbnail: thumb,
     };
   }, [initialRecord, initialThumbnail, initialCharCount, today]);
 
+  const slogan = useMemo(() => {
+    const idx = new Date(record.date).getDate() % SLOGANS.length;
+    return SLOGANS[idx];
+  }, [record.date]);
+
+  const hasAnyData = !!(record.posterThumbnail || record.charCount > 0 || initialRecord);
+
+  // 真实打卡数据 - 因为 checkin 已经先写入 store，所以直接用 stats，不要额外 +
+  const displayTotalDays = stats.totalDays;
+  const displayTotalChars = stats.totalChars;
+  const displayCurrentStreak = stats.currentStreak;
+
+  // 生成真实二维码
   useEffect(() => {
-    if (open) {
-      setSlogan(getRandomSlogan());
-    }
-  }, [open]);
+    let canceled = false;
+    const generate = async () => {
+      try {
+        const payload = JSON.stringify({
+          d: record.date,
+          c: record.charCount,
+          s: displayCurrentStreak,
+          t: Date.now(),
+        });
+        const url = await QRCode.toDataURL(payload, {
+          width: 160,
+          margin: 1,
+          color: {
+            dark: '#44403C',
+            light: '#FFFFFF',
+          },
+          errorCorrectionLevel: 'M',
+        });
+        if (!canceled) setQrDataUrl(url);
+      } catch {
+        if (!canceled) setQrDataUrl('');
+      }
+    };
+    if (open) generate();
+    return () => {
+      canceled = true;
+    };
+  }, [open, record.date, record.charCount, displayCurrentStreak]);
 
-  const handleRefreshSlogan = () => {
-    setSlogan(getRandomSlogan());
-  };
-
-  const handleDownload = async () => {
+  const handleDownload = useCallback(async () => {
     if (!posterRef.current) return;
     setDownloading(true);
     try {
+      await new Promise((r) => setTimeout(r, 120));
       const canvas = await html2canvas(posterRef.current, {
         scale: 2,
         useCORS: true,
@@ -87,192 +119,179 @@ export default function PosterGenerator({
         logging: false,
       });
       const link = document.createElement('a');
-      link.download = `练字打卡-${record.date}.png`;
+      link.download = `练字海报-${record.date}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
     } catch (err) {
-      console.error('生成海报失败:', err);
-      alert('生成海报失败，请重试');
+      console.error('导出海报失败', err);
     } finally {
       setDownloading(false);
     }
-  };
-
-  const font = getFontById(record.fontId);
+  }, [record.date]);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-300">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200 bg-gradient-to-r from-[#FAF7F2] to-[#F5EFE6]">
-          <div className="flex items-center gap-2">
-            <Sparkles size={20} className="text-[#8B2E20]" />
-            <h3 className="text-lg font-bold text-[#3D2C1F]" style={{ fontFamily: '"Noto Serif SC", "STSong", serif' }}>
-              生成打卡海报
-            </h3>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-stone-200/60 text-stone-500 transition-colors"
-          >
-            <X size={20} />
-          </button>
-        </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/70 backdrop-blur-sm">
+      <div className="relative max-w-[380px] w-full">
+        <button
+          onClick={onClose}
+          className="absolute -top-10 right-0 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-8 h-8 flex items-center justify-center transition"
+          aria-label="关闭"
+        >
+          ✕
+        </button>
 
-        <div className="p-6">
-          <div className="flex justify-center mb-5">
-            <div
-              ref={posterRef}
-              className="relative w-[320px] overflow-hidden rounded-2xl shadow-xl"
-              style={{
-                background: `
-                  linear-gradient(135deg, #FAF7F2 0%, #F0E6D3 50%, #E8DCC8 100%)
-                `,
-              }}
-            >
-              <div
-                className="absolute inset-0 opacity-30 pointer-events-none"
-                style={{
-                  backgroundImage: `
-                    radial-gradient(circle at 10% 10%, rgba(212, 165, 116, 0.25) 0%, transparent 40%),
-                    radial-gradient(circle at 90% 80%, rgba(139, 46, 32, 0.12) 0%, transparent 45%),
-                    radial-gradient(circle at 50% 50%, rgba(212, 165, 116, 0.08) 0%, transparent 60%)
-                  `,
-                }}
-              />
+        {/* 海报主体 */}
+        <div
+          ref={posterRef}
+          className="relative w-full bg-[#FAF7F2] rounded-2xl shadow-2xl overflow-hidden"
+          style={{
+            backgroundImage: `
+              radial-gradient(ellipse at 20% 0%, rgba(217,119,6,0.08) 0%, transparent 55%),
+              radial-gradient(ellipse at 100% 100%, rgba(120,53,15,0.10) 0%, transparent 55%)
+            `,
+          }}
+        >
+          {/* 顶部装饰条 */}
+          <div className="h-1.5 bg-gradient-to-r from-amber-200 via-orange-400 to-red-500" />
 
-              <div className="relative p-6 pb-7">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#8B2E20] to-[#5d1e15] flex items-center justify-center shadow-md">
-                      <span className="text-white text-xs font-bold" style={{ fontFamily: '"Noto Serif SC", serif' }}>墨</span>
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-[#8B2E20]" style={{ fontFamily: '"Noto Serif SC", "STSong", serif' }}>
-                        墨韵字帖
-                      </div>
-                      <div className="text-[10px] text-stone-500">每日练字打卡</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[10px] text-stone-500">第</div>
-                    <div className="text-xl font-bold text-[#8B2E20]" style={{ fontFamily: '"Noto Serif SC", "STSong", serif' }}>
-                      {stats.totalDays + (initialCharCount ? 1 : 0)}
-                    </div>
-                    <div className="text-[10px] text-stone-500">天打卡</div>
-                  </div>
+          {/* 角饰 */}
+          <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 border-amber-700/40 rounded-tl-md pointer-events-none" />
+          <div className="absolute top-4 right-4 w-8 h-8 border-r-2 border-t-2 border-amber-700/40 rounded-tr-md pointer-events-none" />
+          <div className="absolute bottom-4 left-4 w-8 h-8 border-l-2 border-b-2 border-amber-700/40 rounded-bl-md pointer-events-none" />
+          <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 border-amber-700/40 rounded-br-md pointer-events-none" />
+
+          <div className="px-7 pt-7 pb-5">
+            {/* 顶部品牌区 */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-md">
+                  <Sparkles size={18} className="text-white" strokeWidth={2.2} />
                 </div>
+                <div className="leading-tight">
+                  <div className="text-[15px] font-bold text-stone-800 tracking-wide">墨韵字帖</div>
+                  <div className="text-[10px] text-stone-500">每日一练 · 静心习字</div>
+                </div>
+              </div>
+              <div className="text-right leading-tight">
+                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                  <span className="text-[10px] font-bold">第 {displayTotalDays || 0} 天打卡</span>
+                </div>
+              </div>
+            </div>
 
-                <div className="relative mb-4 rounded-xl overflow-hidden shadow-lg border-2 border-white/80">
-                  {record.posterThumbnail ? (
-                    <img
-                      src={record.posterThumbnail}
-                      alt="字帖预览"
-                      className="w-full h-44 object-cover"
-                    />
+            {/* 字帖缩略图 */}
+            <div className="relative rounded-xl overflow-hidden border-2 border-amber-700/20 bg-white shadow-inner mb-4">
+              {record.posterThumbnail ? (
+                <img
+                  src={record.posterThumbnail}
+                  alt="字帖预览"
+                  className="w-full block bg-white"
+                  style={{ maxHeight: 220, objectFit: 'contain' }}
+                />
+              ) : (
+                <div
+                  className="w-full flex items-center justify-center text-stone-300 bg-[repeating-linear-gradient(0deg,#fff,#fff_24px,#faf6f0_24px,#faf6f0_25px)]"
+                  style={{ height: 140 }}
+                >
+                  <span className="text-xs">暂无字帖预览</span>
+                </div>
+              )}
+              {/* 渐变遮罩 */}
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-white/70 to-transparent" />
+            </div>
+
+            {/* 标语 */}
+            <div className="text-center mb-4">
+              <p className="text-[17px] font-bold tracking-widest text-amber-900"
+                 style={{ fontFamily: '"Noto Serif SC", "STSong", "SimSun", serif' }}>
+                「{slogan}」
+              </p>
+            </div>
+
+            {/* 数据栏 */}
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <div className="text-center bg-white/70 rounded-lg py-2.5 border border-amber-700/10">
+                <div className="flex items-center justify-center gap-1 text-orange-600 mb-0.5">
+                  <Flame size={13} />
+                  <span className="text-[10px] font-medium">连续打卡</span>
+                </div>
+                <div className="text-lg font-extrabold text-stone-800 leading-none">
+                  {displayCurrentStreak || 0}
+                  <span className="text-[10px] font-normal text-stone-500 ml-0.5">天</span>
+                </div>
+              </div>
+              <div className="text-center bg-white/70 rounded-lg py-2.5 border border-amber-700/10">
+                <div className="flex items-center justify-center gap-1 text-amber-700 mb-0.5">
+                  <Calendar size={13} />
+                  <span className="text-[10px] font-medium">累计天数</span>
+                </div>
+                <div className="text-lg font-extrabold text-stone-800 leading-none">
+                  {displayTotalDays || 0}
+                  <span className="text-[10px] font-normal text-stone-500 ml-0.5">天</span>
+                </div>
+              </div>
+              <div className="text-center bg-white/70 rounded-lg py-2.5 border border-amber-700/10">
+                <div className="flex items-center justify-center gap-1 text-red-600 mb-0.5">
+                  <Sparkles size={13} />
+                  <span className="text-[10px] font-medium">今日练习</span>
+                </div>
+                <div className="text-lg font-extrabold text-stone-800 leading-none">
+                  {record.charCount || 0}
+                  <span className="text-[10px] font-normal text-stone-500 ml-0.5">字</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 日期 + 二维码 */}
+            <div className="flex items-end justify-between gap-3 pt-2 border-t border-dashed border-amber-700/20">
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] text-stone-500 mb-0.5">练习日期</div>
+                <div className="text-[13px] font-semibold text-stone-800 truncate">
+                  {formatDisplayDate(record.date)}
+                </div>
+                {hasAnyData ? (
+                  <div className="text-[10px] text-stone-400 mt-1.5">
+                    已累计练习 {displayTotalChars || 0} 字
+                  </div>
+                ) : null}
+              </div>
+              <div className="shrink-0">
+                <div className="w-[72px] h-[72px] rounded-lg bg-white p-1.5 shadow-sm border border-amber-700/10">
+                  {qrDataUrl ? (
+                    <img src={qrDataUrl} alt="二维码" className="w-full h-full block" />
                   ) : (
-                    <div className="w-full h-44 bg-gradient-to-br from-stone-100 to-stone-200 flex items-center justify-center">
-                      <div className="text-center text-stone-400">
-                        <Quote size={32} className="mx-auto mb-2 opacity-50" />
-                        <p className="text-xs">字帖缩略图</p>
-                      </div>
+                    <div className="w-full h-full rounded bg-stone-50 flex flex-col items-center justify-center">
+                      <div className="w-4 h-4 border border-stone-200 animate-pulse" />
                     </div>
                   )}
-                  <div className="absolute top-2 left-2 px-2 py-1 bg-white/90 backdrop-blur-sm rounded-md shadow-sm">
-                    <span className="text-[10px] font-medium text-[#3D2C1F]">
-                      {font.name}
-                    </span>
-                  </div>
                 </div>
-
-                <div className="relative mb-4 p-4 rounded-xl bg-white/60 backdrop-blur-sm border border-stone-200/60 shadow-sm">
-                  <Quote size={18} className="absolute -top-2 -left-1 text-[#8B2E20]/30" />
-                  <p
-                    className="text-center text-[#3D2C1F] font-medium leading-relaxed"
-                    style={{
-                      fontFamily: '"Noto Serif SC", "STSong", "KaiTi", serif',
-                      fontSize: '15px',
-                      letterSpacing: '0.05em',
-                    }}
-                  >
-                    「{slogan}」
-                  </p>
-                </div>
-
-                <div className="relative flex items-end justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-baseline gap-1.5 mb-1.5">
-                      <span className="text-3xl font-bold text-[#8B2E20]" style={{ fontFamily: '"Noto Serif SC", serif' }}>
-                        {record.charCount}
-                      </span>
-                      <span className="text-sm text-stone-600 font-medium">字</span>
-                      <span className="text-xs text-stone-400 ml-1">今日练习</span>
-                    </div>
-                    <div className="text-xs text-stone-500 mb-3">
-                      <span className="font-medium text-[#3D2C1F]">{formatChineseDate(record.date)}</span>
-                    </div>
-                    <div className="flex gap-3">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#FF6B35]"></div>
-                        <span className="text-[10px] text-stone-500">
-                          连续 <span className="font-medium text-[#3D2C1F]">{stats.currentStreak}</span> 天
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#4A7C59]"></div>
-                        <span className="text-[10px] text-stone-500">
-                          累计 <span className="font-medium text-[#3D2C1F]">{stats.totalChars + record.charCount}</span> 字
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="shrink-0">
-                    <div className="w-20 h-20 rounded-xl bg-white p-1.5 shadow-md border border-stone-200">
-                      <div className="w-full h-full rounded-lg bg-stone-50 flex flex-col items-center justify-center border border-dashed border-stone-300">
-                        <QrCode size={28} className="text-stone-400 mb-1" />
-                        <span className="text-[8px] text-stone-400">扫码查看</span>
-                      </div>
-                    </div>
-                    <div className="text-center mt-1.5 text-[9px] text-stone-400">
-                      识别二维码
-                    </div>
-                  </div>
-                </div>
-
-                <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br from-[#8B2E20]/10 to-transparent" />
-                <div className="absolute -left-8 -bottom-4 w-20 h-20 rounded-full bg-gradient-to-tr from-[#D4A574]/15 to-transparent" />
+                <div className="text-center text-[9px] text-stone-400 mt-1">扫码查看</div>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleRefreshSlogan}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-stone-700 bg-stone-100 rounded-xl hover:bg-stone-200 transition-colors"
-            >
-              <RefreshCw size={16} />
-              换个标语
-            </button>
-            <button
-              onClick={handleDownload}
-              disabled={downloading}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-[#8B2E20] to-[#a03829] rounded-xl hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-            >
-              {downloading ? (
-                <>
-                  <RefreshCw size={16} className="animate-spin" />
-                  生成中...
-                </>
-              ) : (
-                <>
-                  <Download size={16} />
-                  保存海报
-                </>
-              )}
-            </button>
-          </div>
+          {/* 底部装饰条 */}
+          <div className="h-1 bg-gradient-to-r from-amber-200 via-orange-400 to-red-500" />
+        </div>
+
+        {/* 操作按钮 */}
+        <div className="mt-4 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl bg-white/10 text-white/90 hover:bg-white/20 transition text-sm font-medium backdrop-blur"
+          >
+            关闭
+          </button>
+          <button
+            onClick={handleDownload}
+            disabled={downloading}
+            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 transition text-white text-sm font-semibold shadow-lg disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-1.5"
+          >
+            <Download size={16} />
+            {downloading ? '生成中…' : '下载海报'}
+          </button>
         </div>
       </div>
     </div>
