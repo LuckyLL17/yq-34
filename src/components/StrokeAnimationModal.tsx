@@ -5,10 +5,10 @@ import { useCopybookStore } from '@/store/useCopybookStore';
 import HanziWriter from 'hanzi-writer';
 
 const SPEED_OPTIONS = [
-  { label: '慢速', value: 2 },
+  { label: '慢速', value: 0.5 },
   { label: '正常', value: 1 },
-  { label: '快速', value: 0.5 },
-  { label: '极速', value: 0.2 },
+  { label: '快速', value: 2 },
+  { label: '极速', value: 5 },
 ];
 
 export default function StrokeAnimationModal() {
@@ -34,6 +34,8 @@ export default function StrokeAnimationModal() {
   const isPausedRef = useRef(false);
   const pendingStrokeRef = useRef(0);
   const isAnimatingRef = useRef(false);
+  const totalStrokesRef = useRef(0);
+  const isFirstPlayRef = useRef(true);
 
   const char = strokeAnimation.char;
   const isOpen = strokeAnimation.isOpen;
@@ -50,7 +52,7 @@ export default function StrokeAnimationModal() {
   }, []);
 
   const renderStrokesUpTo = useCallback(async (target: number): Promise<void> => {
-    if (!writerRef.current || totalStrokes === 0) return;
+    if (!writerRef.current || totalStrokesRef.current === 0) return;
     const w = writerRef.current as unknown as {
       hideCharacter: () => Promise<void>;
       showCharacter: () => void;
@@ -73,7 +75,7 @@ export default function StrokeAnimationModal() {
     }
     w._options.strokeAnimationSpeed = origSpeed;
     w._options.delayBetweenStrokes = origDelay;
-  }, [totalStrokes]);
+  }, []);
 
   const animateFromStroke = useCallback(async (startStroke: number) => {
     if (!writerRef.current) {
@@ -92,17 +94,23 @@ export default function StrokeAnimationModal() {
     setCurrentStroke(startStroke);
 
     const w = writerRef.current as unknown as {
-      animateStroke: (i: number, options?: { onComplete?: () => void }) => Promise<void>;
+      animateStroke: (i: number, options?: { onComplete?: () => void }) => Promise<{ canceled: boolean }>;
       hideCharacter: () => Promise<void>;
     };
 
     if (startStroke === 0) {
-      await w.hideCharacter();
+      if (isFirstPlayRef.current) {
+        isFirstPlayRef.current = false;
+      } else {
+        await w.hideCharacter();
+      }
     } else {
+      isFirstPlayRef.current = false;
       await renderStrokesUpTo(startStroke);
     }
 
-    console.log('[animateFromStroke] 开始循环, startStroke=', startStroke, 'totalStrokes=', totalStrokes);
+    const total = totalStrokesRef.current;
+    console.log('[animateFromStroke] 开始循环, startStroke=', startStroke, 'totalStrokes=', total);
 
     while (writerRef.current && isAnimatingRef.current) {
       if (isPausedRef.current) {
@@ -111,7 +119,7 @@ export default function StrokeAnimationModal() {
         return;
       }
 
-      if (strokeIdx >= totalStrokes) {
+      if (strokeIdx >= total) {
         console.log('[animateFromStroke] 播放完成');
         isAnimatingRef.current = false;
         setIsAnimating(false);
@@ -128,6 +136,11 @@ export default function StrokeAnimationModal() {
       try {
         const result = await w.animateStroke(strokeIdx);
         console.log('[animateFromStroke] animateStroke 完成, 耗时:', Date.now() - t0, 'ms, result=', result);
+        if (result && result.canceled) {
+          console.log('[animateFromStroke] animateStroke 被 cancel, 退出循环');
+          pendingStrokeRef.current = strokeIdx;
+          return;
+        }
       } catch (e) {
         console.error('[animateFromStroke] animateStroke 错误:', e);
       }
@@ -143,13 +156,13 @@ export default function StrokeAnimationModal() {
       setCurrentStroke(strokeIdx);
       console.log('[animateFromStroke] 更新到第', strokeIdx, '笔');
 
-      if (strokeIdx < totalStrokes) {
+      if (strokeIdx < total) {
         await new Promise<void>((resolve) => {
           loopTimeoutRef.current = setTimeout(resolve, 150);
         });
       }
     }
-  }, [totalStrokes, isLooping, clearAllTimers, renderStrokesUpTo]);
+  }, [isLooping, clearAllTimers, renderStrokesUpTo]);
 
   const initWriter = useCallback(() => {
     if (!containerRef.current || !char || !isOpen) return;
@@ -158,6 +171,7 @@ export default function StrokeAnimationModal() {
     isAnimatingRef.current = false;
     isPausedRef.current = false;
     pendingStrokeRef.current = 0;
+    isFirstPlayRef.current = true;
 
     if (writerRef.current) {
       writerRef.current = null;
@@ -168,6 +182,7 @@ export default function StrokeAnimationModal() {
     setIsAnimating(false);
     setIsPaused(false);
     setTotalStrokes(0);
+    totalStrokesRef.current = 0;
 
     try {
       const writer = HanziWriter.create(containerRef.current, char, {
@@ -189,6 +204,7 @@ export default function StrokeAnimationModal() {
             .then((data) => {
               const strokes = data?.strokes?.length || 0;
               setTotalStrokes(strokes);
+              totalStrokesRef.current = strokes;
               onComplete(data);
             })
             .catch((err) => {
@@ -228,9 +244,9 @@ export default function StrokeAnimationModal() {
 
   useEffect(() => {
     if (totalStrokes > 0) {
-      renderStrokesUpTo(0);
+      totalStrokesRef.current = totalStrokes;
     }
-  }, [totalStrokes, renderStrokesUpTo]);
+  }, [totalStrokes]);
 
   useEffect(() => {
     return () => {
@@ -257,7 +273,8 @@ export default function StrokeAnimationModal() {
       return;
     }
 
-    const startFrom = currentStroke >= totalStrokes ? 0 : currentStroke;
+    const total = totalStrokesRef.current;
+    const startFrom = currentStroke >= total ? 0 : currentStroke;
     animateFromStroke(startFrom);
   };
 
@@ -282,8 +299,9 @@ export default function StrokeAnimationModal() {
     setIsAnimating(false);
     setIsPaused(false);
 
-    const target = Math.min(totalStrokes, currentStroke + 1);
-    if (target > 0 && target <= totalStrokes) {
+    const total = totalStrokesRef.current;
+    const target = Math.min(total, currentStroke + 1);
+    if (target > 0 && target <= total) {
       const prev = target - 1;
       if (prev > 0) {
         await renderStrokesUpTo(prev);
