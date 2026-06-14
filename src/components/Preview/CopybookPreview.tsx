@@ -1,6 +1,8 @@
 import { forwardRef, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useCopybookStore } from '@/store/useCopybookStore';
 import { getFontById } from '@/utils/fonts';
+import type { CopybookConfig } from '@/types';
 import GridCell from './GridCell';
 import PageDrawingCanvas from './PageDrawingCanvas';
 
@@ -10,9 +12,24 @@ interface CopybookPreviewProps {
 
 const A4_RATIO = 297 / 210;
 
+const selector = (s: any): CopybookConfig => ({
+  textType: s.textType,
+  text: s.text,
+  fontId: s.fontId,
+  gridType: s.gridType,
+  cellSize: s.cellSize,
+  colsPerRow: s.colsPerRow,
+  rows: s.rows,
+  fontColor: s.fontColor,
+  gridColor: s.gridColor,
+  showDashed: s.showDashed,
+  showTrace: s.showTrace,
+  traceOpacity: s.traceOpacity,
+});
+
 const CopybookPreview = forwardRef<HTMLDivElement, CopybookPreviewProps>(
   ({ className }, ref) => {
-    const config = useCopybookStore();
+    const config = useCopybookStore(useShallow(selector));
     const font = getFontById(config.fontId);
 
     const allChars = useMemo(() => {

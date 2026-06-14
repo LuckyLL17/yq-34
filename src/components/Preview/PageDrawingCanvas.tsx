@@ -1,6 +1,9 @@
 import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useCopybookStore } from '@/store/useCopybookStore';
 import type { DrawingPath } from '@/types';
+
+const EMPTY_ARRAY: DrawingPath[] = [];
 
 interface PageDrawingCanvasProps {
   pageIndex: number;
@@ -19,11 +22,15 @@ const PageDrawingCanvas = forwardRef<PageDrawingCanvasHandle, PageDrawingCanvasP
     const currentPathRef = useRef<{ x: number; y: number }[]>([]);
     const lastPointRef = useRef<{ x: number; y: number } | null>(null);
 
-    const pagePaths = useCopybookStore((s) => s.pagePaths[pageIndex] || []);
-    const penColor = useCopybookStore((s) => s.penColor);
-    const penWidth = useCopybookStore((s) => s.penWidth);
-    const drawingEnabled = useCopybookStore((s) => s.drawingEnabled);
-    const addPathToPage = useCopybookStore((s) => s.addPathToPage);
+    const { pagePaths, penColor, penWidth, drawingEnabled, addPathToPage } = useCopybookStore(
+      useShallow((s) => ({
+        pagePaths: s.pagePaths[pageIndex] ?? EMPTY_ARRAY,
+        penColor: s.penColor,
+        penWidth: s.penWidth,
+        drawingEnabled: s.drawingEnabled,
+        addPathToPage: s.addPathToPage,
+      }))
+    );
 
     const getCanvasCoords = useCallback(
       (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {

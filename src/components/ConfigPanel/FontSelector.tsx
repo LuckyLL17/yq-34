@@ -1,10 +1,15 @@
+import { useShallow } from 'zustand/react/shallow';
 import { useCopybookStore } from '@/store/useCopybookStore';
 import { getFontById, getFontsByType } from '@/utils/fonts';
 
 export default function FontSelector() {
-  const textType = useCopybookStore((s) => s.textType);
-  const fontId = useCopybookStore((s) => s.fontId);
-  const setFontId = useCopybookStore((s) => s.setFontId);
+  const { textType, fontId, setFontId } = useCopybookStore(
+    useShallow((s) => ({
+      textType: s.textType,
+      fontId: s.fontId,
+      setFontId: s.setFontId,
+    }))
+  );
 
   const fonts = getFontsByType(textType);
   const currentFont = getFontById(fontId);

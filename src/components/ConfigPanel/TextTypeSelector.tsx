@@ -1,4 +1,5 @@
 import { Hash, Type, Languages } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 import { useCopybookStore } from '@/store/useCopybookStore';
 import type { TextType } from '@/types';
 
@@ -9,8 +10,12 @@ const types: { id: TextType; label: string; icon: typeof Hash }[] = [
 ];
 
 export default function TextTypeSelector() {
-  const textType = useCopybookStore((s) => s.textType);
-  const setTextType = useCopybookStore((s) => s.setTextType);
+  const { textType, setTextType } = useCopybookStore(
+    useShallow((s) => ({
+      textType: s.textType,
+      setTextType: s.setTextType,
+    }))
+  );
 
   return (
     <div className="space-y-2">

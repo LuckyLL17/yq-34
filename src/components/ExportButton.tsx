@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Download, RotateCcw, Loader2, FileDown, ChevronDown, Pencil, FileText } from 'lucide-react';
 import { useCopybookStore } from '@/store/useCopybookStore';
 import { exportCopybookToPdf } from '@/utils/pdfExport';
@@ -13,8 +14,12 @@ export default function ExportButton({ previewRef }: ExportButtonProps) {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
-  const resetConfig = useCopybookStore((s) => s.resetConfig);
-  const pagePaths = useCopybookStore((s) => s.pagePaths);
+  const { resetConfig, pagePaths } = useCopybookStore(
+    useShallow((s) => ({
+      resetConfig: s.resetConfig,
+      pagePaths: s.pagePaths,
+    }))
+  );
 
   const hasDrawing = useMemo(() => {
     return Object.values(pagePaths).some((p) => p && p.length > 0);

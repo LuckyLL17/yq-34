@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import { useCopybookStore } from '@/store/useCopybookStore';
 import type { GridType } from '@/types';
 
@@ -9,21 +10,39 @@ const gridTypes: { id: GridType; label: string }[] = [
 ];
 
 export default function GridConfig() {
-  const gridType = useCopybookStore((s) => s.gridType);
-  const cellSize = useCopybookStore((s) => s.cellSize);
-  const colsPerRow = useCopybookStore((s) => s.colsPerRow);
-  const rows = useCopybookStore((s) => s.rows);
-  const showDashed = useCopybookStore((s) => s.showDashed);
-  const showTrace = useCopybookStore((s) => s.showTrace);
-  const traceOpacity = useCopybookStore((s) => s.traceOpacity);
-
-  const setGridType = useCopybookStore((s) => s.setGridType);
-  const setCellSize = useCopybookStore((s) => s.setCellSize);
-  const setColsPerRow = useCopybookStore((s) => s.setColsPerRow);
-  const setRows = useCopybookStore((s) => s.setRows);
-  const setShowDashed = useCopybookStore((s) => s.setShowDashed);
-  const setShowTrace = useCopybookStore((s) => s.setShowTrace);
-  const setTraceOpacity = useCopybookStore((s) => s.setTraceOpacity);
+  const {
+    gridType,
+    cellSize,
+    colsPerRow,
+    rows,
+    showDashed,
+    showTrace,
+    traceOpacity,
+    setGridType,
+    setCellSize,
+    setColsPerRow,
+    setRows,
+    setShowDashed,
+    setShowTrace,
+    setTraceOpacity,
+  } = useCopybookStore(
+    useShallow((s) => ({
+      gridType: s.gridType,
+      cellSize: s.cellSize,
+      colsPerRow: s.colsPerRow,
+      rows: s.rows,
+      showDashed: s.showDashed,
+      showTrace: s.showTrace,
+      traceOpacity: s.traceOpacity,
+      setGridType: s.setGridType,
+      setCellSize: s.setCellSize,
+      setColsPerRow: s.setColsPerRow,
+      setRows: s.setRows,
+      setShowDashed: s.setShowDashed,
+      setShowTrace: s.setShowTrace,
+      setTraceOpacity: s.setTraceOpacity,
+    }))
+  );
 
   return (
     <div className="space-y-5">

@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import { useCopybookStore } from '@/store/useCopybookStore';
 
 const fontColorPresets = [
@@ -19,10 +20,14 @@ const gridColorPresets = [
 ];
 
 export default function ColorConfig() {
-  const fontColor = useCopybookStore((s) => s.fontColor);
-  const gridColor = useCopybookStore((s) => s.gridColor);
-  const setFontColor = useCopybookStore((s) => s.setFontColor);
-  const setGridColor = useCopybookStore((s) => s.setGridColor);
+  const { fontColor, gridColor, setFontColor, setGridColor } = useCopybookStore(
+    useShallow((s) => ({
+      fontColor: s.fontColor,
+      gridColor: s.gridColor,
+      setFontColor: s.setFontColor,
+      setGridColor: s.setGridColor,
+    }))
+  );
 
   return (
     <div className="space-y-5">

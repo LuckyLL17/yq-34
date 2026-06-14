@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Undo2, Redo2, Eraser, Pencil, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import { useCopybookStore } from '@/store/useCopybookStore';
 
@@ -20,18 +21,33 @@ const penWidthPresets = [
 
 export default function DrawingToolbar() {
   const [expanded, setExpanded] = useState(true);
-  const drawingEnabled = useCopybookStore((s) => s.drawingEnabled);
-  const penColor = useCopybookStore((s) => s.penColor);
-  const penWidth = useCopybookStore((s) => s.penWidth);
-  const pagePaths = useCopybookStore((s) => s.pagePaths);
-  const pageRedoStack = useCopybookStore((s) => s.pageRedoStack);
-
-  const setDrawingEnabled = useCopybookStore((s) => s.setDrawingEnabled);
-  const setPenColor = useCopybookStore((s) => s.setPenColor);
-  const setPenWidth = useCopybookStore((s) => s.setPenWidth);
-  const undoPath = useCopybookStore((s) => s.undoPath);
-  const redoPath = useCopybookStore((s) => s.redoPath);
-  const clearAllPaths = useCopybookStore((s) => s.clearAllPaths);
+  const {
+    drawingEnabled,
+    penColor,
+    penWidth,
+    pagePaths,
+    pageRedoStack,
+    setDrawingEnabled,
+    setPenColor,
+    setPenWidth,
+    undoPath,
+    redoPath,
+    clearAllPaths,
+  } = useCopybookStore(
+    useShallow((s) => ({
+      drawingEnabled: s.drawingEnabled,
+      penColor: s.penColor,
+      penWidth: s.penWidth,
+      pagePaths: s.pagePaths,
+      pageRedoStack: s.pageRedoStack,
+      setDrawingEnabled: s.setDrawingEnabled,
+      setPenColor: s.setPenColor,
+      setPenWidth: s.setPenWidth,
+      undoPath: s.undoPath,
+      redoPath: s.redoPath,
+      clearAllPaths: s.clearAllPaths,
+    }))
+  );
 
   const { hasUndo, hasRedo, hasPaths } = useMemo(() => {
     let undo = false;

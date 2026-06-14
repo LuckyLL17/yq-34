@@ -1,12 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { ChevronDown, Sparkles } from 'lucide-react';
 import { useCopybookStore } from '@/store/useCopybookStore';
 import { getPresetsByType } from '@/utils/presetTexts';
 
 export default function TextInput() {
-  const textType = useCopybookStore((s) => s.textType);
-  const text = useCopybookStore((s) => s.text);
-  const setText = useCopybookStore((s) => s.setText);
+  const { textType, text, setText } = useCopybookStore(
+    useShallow((s) => ({
+      textType: s.textType,
+      text: s.text,
+      setText: s.setText,
+    }))
+  );
   const [showPresets, setShowPresets] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
