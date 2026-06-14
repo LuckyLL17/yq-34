@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Settings, Eye, PenTool, ChevronDown } from 'lucide-react';
 import CopybookPreview from '@/components/Preview/CopybookPreview';
+import DrawingToolbar from '@/components/Preview/DrawingToolbar';
 import TextTypeSelector from '@/components/ConfigPanel/TextTypeSelector';
 import TextInput from '@/components/ConfigPanel/TextInput';
 import FontSelector from '@/components/ConfigPanel/FontSelector';
@@ -123,6 +124,9 @@ export default function Home() {
           </aside>
 
           <section className="flex-1 min-w-0 order-1 lg:order-2">
+            <div className="sticky top-4 z-20 mb-4">
+              <DrawingToolbar />
+            </div>
             <div className="overflow-auto custom-scrollbar pb-8">
               <CopybookPreview ref={previewRef} />
             </div>
@@ -130,10 +134,12 @@ export default function Home() {
             <div className="mt-6 p-4 bg-white/60 backdrop-blur-sm rounded-xl border border-stone-200/50">
               <h3 className="text-sm font-semibold text-[#3D2C1F] mb-2">💡 使用小贴士</h3>
               <ul className="text-xs text-stone-600 space-y-1.5 leading-relaxed">
+                <li>• <strong>临摹练字</strong>：点击上方工具栏的「临摹练字」开关，即可直接在字帖上用鼠标或触屏描红练习</li>
                 <li>• <strong>描红模式</strong>：开启后显示半透明的范字，适合初学者临摹练习</li>
                 <li>• <strong>无格线</strong>：适合进阶练习，专注于字形结构</li>
                 <li>• <strong>A4 导出</strong>：选择 A4 模式导出可直接打印使用</li>
                 <li>• <strong>自定义颜色</strong>：点击颜色方块旁边的圆形取色器，支持自定义任意颜色</li>
+                <li>• <strong>撤销清除</strong>：临摹时可随时撤销笔画或一键清除，方便反复练习</li>
               </ul>
             </div>
           </section>

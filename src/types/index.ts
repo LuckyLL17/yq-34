@@ -29,3 +29,15 @@ export interface PresetText {
   value: string;
   textType: TextType;
 }
+
+export interface DrawingPath {
+  points: { x: number; y: number }[];
+  color: string;
+  lineWidth: number;
+}
+
+export interface DrawingConfig {
+  penColor: string;
+  penWidth: number;
+  drawingEnabled: boolean;
+}

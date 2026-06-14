@@ -1,0 +1,161 @@
+import { Undo2, Redo2, Eraser, Pencil, Trash2 } from 'lucide-react';
+import { useCopybookStore } from '@/store/useCopybookStore';
+
+const penColorPresets = [
+  { name: '墨黑', value: '#1a1a1a' },
+  { name: '深蓝', value: '#1e3a5f' },
+  { name: '墨红', value: '#8B2E20' },
+  { name: '墨绿', value: '#1b4332' },
+  { name: '深紫', value: '#4a1942' },
+  { name: '棕色', value: '#5d4037' },
+];
+
+const penWidthPresets = [
+  { label: '细', value: 2 },
+  { label: '中', value: 4 },
+  { label: '粗', value: 6 },
+  { label: '特粗', value: 10 },
+];
+
+export default function DrawingToolbar() {
+  const drawingEnabled = useCopybookStore((s) => s.drawingEnabled);
+  const penColor = useCopybookStore((s) => s.penColor);
+  const penWidth = useCopybookStore((s) => s.penWidth);
+  const paths = useCopybookStore((s) => s.paths);
+  const redoStack = useCopybookStore((s) => s.redoStack);
+
+  const setDrawingEnabled = useCopybookStore((s) => s.setDrawingEnabled);
+  const setPenColor = useCopybookStore((s) => s.setPenColor);
+  const setPenWidth = useCopybookStore((s) => s.setPenWidth);
+  const undoPath = useCopybookStore((s) => s.undoPath);
+  const redoPath = useCopybookStore((s) => s.redoPath);
+  const clearAllPaths = useCopybookStore((s) => s.clearAllPaths);
+
+  const canUndo = paths.length > 0;
+  const canRedo = redoStack.length > 0;
+  const hasPaths = paths.length > 0 || redoStack.length > 0;
+
+  return (
+    <div className="bg-white/90 backdrop-blur-md rounded-xl border border-stone-200 shadow-lg p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Pencil size={18} className="text-[#8B2E20]" />
+          <h3 className="font-semibold text-sm text-stone-700">临摹练字</h3>
+        </div>
+        <div className="relative">
+          <input
+            type="checkbox"
+            checked={drawingEnabled}
+            onChange={(e) => setDrawingEnabled(e.target.checked)}
+            className="sr-only peer"
+            id="drawing-toggle"
+          />
+          <label
+            htmlFor="drawing-toggle"
+            className="cursor-pointer"
+          >
+            <div className="w-10 h-5 bg-stone-200 rounded-full peer-checked:bg-[#8B2E20] transition-colors" />
+            <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5" />
+          </label>
+        </div>
+      </div>
+
+      <div className={`space-y-4 transition-opacity duration-200 ${drawingEnabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <label className="text-xs font-medium text-stone-600">笔色</label>
+            <input
+              type="color"
+              value={penColor}
+              onChange={(e) => setPenColor(e.target.value)}
+              className="w-6 h-6 rounded border border-stone-200 cursor-pointer bg-transparent"
+            />
+          </div>
+          <div className="grid grid-cols-6 gap-1.5">
+            {penColorPresets.map((c) => (
+              <button
+                key={c.value}
+                onClick={() => setPenColor(c.value)}
+                title={c.name}
+                className={`aspect-square rounded-md border-2 transition-all hover:scale-105 ${
+                  penColor === c.value
+                    ? 'border-stone-900 ring-2 ring-stone-900/20'
+                    : 'border-transparent'
+                }`}
+                style={{ backgroundColor: c.value }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <label className="text-xs font-medium text-stone-600">笔触粗细</label>
+            <span className="text-xs text-stone-500 bg-stone-100 px-2 py-0.5 rounded">
+              {penWidth}px
+            </span>
+          </div>
+          <div className="flex gap-2">
+            {penWidthPresets.map((w) => (
+              <button
+                key={w.value}
+                onClick={() => setPenWidth(w.value)}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-md border transition-all ${
+                  penWidth === w.value
+                    ? 'border-[#8B2E20] bg-[#8B2E20] text-white'
+                    : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
+                }`}
+              >
+                {w.label}
+              </button>
+            ))}
+          </div>
+          <input
+            type="range"
+            min={1}
+            max={20}
+            value={penWidth}
+            onChange={(e) => setPenWidth(Number(e.target.value))}
+            className="w-full accent-[#8B2E20] cursor-pointer"
+          />
+        </div>
+
+        <div className="flex gap-2 pt-2">
+          <button
+            onClick={undoPath}
+            disabled={!canUndo}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-medium rounded-lg border transition-all disabled:opacity-40 disabled:cursor-not-allowed border-stone-200 bg-white text-stone-600 hover:bg-stone-50"
+          >
+            <Undo2 size={14} />
+            <span>撤销</span>
+          </button>
+          <button
+            onClick={redoPath}
+            disabled={!canRedo}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-medium rounded-lg border transition-all disabled:opacity-40 disabled:cursor-not-allowed border-stone-200 bg-white text-stone-600 hover:bg-stone-50"
+          >
+            <Redo2 size={14} />
+            <span>重做</span>
+          </button>
+          <button
+            onClick={clearAllPaths}
+            disabled={!hasPaths}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-medium rounded-lg border transition-all disabled:opacity-40 disabled:cursor-not-allowed border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+          >
+            <Trash2 size={14} />
+            <span>清除</span>
+          </button>
+        </div>
+
+        {drawingEnabled && (
+          <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg border border-amber-200/50">
+            <Eraser size={14} className="text-amber-600 shrink-0" />
+            <p className="text-[11px] text-amber-700 leading-relaxed">
+              已开启临摹模式，可直接在字帖上描红练习。关闭后可正常滚动预览。
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
