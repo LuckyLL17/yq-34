@@ -1,4 +1,5 @@
-import { Undo2, Redo2, Eraser, Pencil, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Undo2, Redo2, Eraser, Pencil, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import { useCopybookStore } from '@/store/useCopybookStore';
 
 const penColorPresets = [
@@ -18,6 +19,7 @@ const penWidthPresets = [
 ];
 
 export default function DrawingToolbar() {
+  const [expanded, setExpanded] = useState(true);
   const drawingEnabled = useCopybookStore((s) => s.drawingEnabled);
   const penColor = useCopybookStore((s) => s.penColor);
   const penWidth = useCopybookStore((s) => s.penWidth);
@@ -36,31 +38,42 @@ export default function DrawingToolbar() {
   const hasPaths = paths.length > 0 || redoStack.length > 0;
 
   return (
-    <div className="bg-white/90 backdrop-blur-md rounded-xl border border-stone-200 shadow-lg p-4 space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="bg-white/90 backdrop-blur-md rounded-xl border border-stone-200 shadow-lg overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-stone-50 to-white">
         <div className="flex items-center gap-2">
           <Pencil size={18} className="text-[#8B2E20]" />
           <h3 className="font-semibold text-sm text-stone-700">临摹练字</h3>
+          {drawingEnabled && (
+            <span className="px-1.5 py-0.5 text-[10px] font-medium bg-[#8B2E20]/10 text-[#8B2E20] rounded">
+              已开启
+            </span>
+          )}
         </div>
-        <div className="relative">
-          <input
-            type="checkbox"
-            checked={drawingEnabled}
-            onChange={(e) => setDrawingEnabled(e.target.checked)}
-            className="sr-only peer"
-            id="drawing-toggle"
-          />
-          <label
-            htmlFor="drawing-toggle"
-            className="cursor-pointer"
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setDrawingEnabled(!drawingEnabled)}
+            className="relative w-10 h-5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#8B2E20]/30"
+            style={{ backgroundColor: drawingEnabled ? '#8B2E20' : '#e7e5e4' }}
+            aria-pressed={drawingEnabled}
+            aria-label={drawingEnabled ? '关闭临摹模式' : '开启临摹模式'}
           >
-            <div className="w-10 h-5 bg-stone-200 rounded-full peer-checked:bg-[#8B2E20] transition-colors" />
-            <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5" />
-          </label>
+            <div
+              className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
+              style={{ transform: drawingEnabled ? 'translateX(20px)' : 'translateX(0)' }}
+            />
+          </button>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="p-1 hover:bg-stone-100 rounded transition-colors"
+            title={expanded ? '收起' : '展开'}
+          >
+            {expanded ? <ChevronUp size={18} className="text-stone-500" /> : <ChevronDown size={18} className="text-stone-500" />}
+          </button>
         </div>
       </div>
 
-      <div className={`space-y-4 transition-opacity duration-200 ${drawingEnabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+      {expanded && (
+        <div className={`px-4 pb-4 pt-2 space-y-4 transition-opacity duration-200 ${drawingEnabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
         <div className="space-y-2">
           <div className="flex justify-between items-center">
             <label className="text-xs font-medium text-stone-600">笔色</label>
@@ -155,7 +168,8 @@ export default function DrawingToolbar() {
             </p>
           </div>
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
