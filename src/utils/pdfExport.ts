@@ -5,6 +5,7 @@ export interface ExportOptions {
   filename?: string;
   scale?: number;
   marginMm?: number;
+  includeDrawing?: boolean;
 }
 
 async function waitFontsReady(): Promise<void> {
@@ -20,7 +21,8 @@ async function waitFontsReady(): Promise<void> {
 
 async function capturePage(
   element: HTMLElement,
-  scale: number
+  scale: number,
+  includeDrawing: boolean
 ): Promise<{ dataUrl: string; width: number; height: number }> {
   const canvas = await html2canvas(element, {
     scale,
@@ -43,6 +45,10 @@ async function capturePage(
         clone.style.filter = 'none';
         clone.style.margin = '0';
       }
+      if (!includeDrawing) {
+        const canvases = clonedDoc.querySelectorAll('canvas.page-drawing-canvas');
+        canvases.forEach((c) => c.remove());
+      }
       const styles = clonedDoc.querySelectorAll('style, link[rel="stylesheet"]');
       styles.forEach((s) => s.removeAttribute('media'));
     },
@@ -59,7 +65,7 @@ export async function exportCopybookToPdf(
   container: HTMLElement,
   options: ExportOptions = {}
 ): Promise<void> {
-  const { filename = '字帖.pdf', scale = 2, marginMm = 8 } = options;
+  const { filename = '字帖.pdf', scale = 2, marginMm = 8, includeDrawing = true } = options;
 
   if (!container) {
     throw new Error('找不到要导出的元素');
@@ -96,7 +102,8 @@ export async function exportCopybookToPdf(
 
     const { dataUrl, width: imgW, height: imgH } = await capturePage(
       pageEl,
-      scale
+      scale,
+      includeDrawing
     );
 
     if (i > 0) {

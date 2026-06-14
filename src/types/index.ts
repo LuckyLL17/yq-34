@@ -36,6 +36,10 @@ export interface DrawingPath {
   lineWidth: number;
 }
 
+export interface PageDrawingPaths {
+  [pageIndex: number]: DrawingPath[];
+}
+
 export interface DrawingConfig {
   penColor: string;
   penWidth: number;

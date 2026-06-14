@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Undo2, Redo2, Eraser, Pencil, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import { useCopybookStore } from '@/store/useCopybookStore';
 
@@ -23,8 +23,8 @@ export default function DrawingToolbar() {
   const drawingEnabled = useCopybookStore((s) => s.drawingEnabled);
   const penColor = useCopybookStore((s) => s.penColor);
   const penWidth = useCopybookStore((s) => s.penWidth);
-  const paths = useCopybookStore((s) => s.paths);
-  const redoStack = useCopybookStore((s) => s.redoStack);
+  const pagePaths = useCopybookStore((s) => s.pagePaths);
+  const pageRedoStack = useCopybookStore((s) => s.pageRedoStack);
 
   const setDrawingEnabled = useCopybookStore((s) => s.setDrawingEnabled);
   const setPenColor = useCopybookStore((s) => s.setPenColor);
@@ -33,9 +33,41 @@ export default function DrawingToolbar() {
   const redoPath = useCopybookStore((s) => s.redoPath);
   const clearAllPaths = useCopybookStore((s) => s.clearAllPaths);
 
-  const canUndo = paths.length > 0;
-  const canRedo = redoStack.length > 0;
-  const hasPaths = paths.length > 0 || redoStack.length > 0;
+  const { hasUndo, hasRedo, hasPaths } = useMemo(() => {
+    let undo = false;
+    let redo = false;
+    let paths = false;
+    for (const key in pagePaths) {
+      if (pagePaths[key] && pagePaths[key].length > 0) {
+        undo = true;
+        paths = true;
+      }
+    }
+    for (const key in pageRedoStack) {
+      if (pageRedoStack[key] && pageRedoStack[key].length > 0) {
+        redo = true;
+      }
+    }
+    return { hasUndo: undo, hasRedo: redo, hasPaths: paths };
+  }, [pagePaths, pageRedoStack]);
+
+  const handleUndo = () => {
+    for (const key in pagePaths) {
+      if (pagePaths[key] && pagePaths[key].length > 0) {
+        undoPath(Number(key));
+        return;
+      }
+    }
+  };
+
+  const handleRedo = () => {
+    const redoKeys = Object.keys(pageRedoStack).filter(
+      (k) => pageRedoStack[Number(k)] && pageRedoStack[Number(k)].length > 0
+    );
+    if (redoKeys.length > 0) {
+      redoPath(Number(redoKeys[redoKeys.length - 1]));
+    }
+  };
 
   return (
     <div className="bg-white/90 backdrop-blur-md rounded-xl border border-stone-200 shadow-lg overflow-hidden">
@@ -46,6 +78,11 @@ export default function DrawingToolbar() {
           {drawingEnabled && (
             <span className="px-1.5 py-0.5 text-[10px] font-medium bg-[#8B2E20]/10 text-[#8B2E20] rounded">
               已开启
+            </span>
+          )}
+          {hasPaths && !drawingEnabled && (
+            <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 rounded">
+              已临摹
             </span>
           )}
         </div>
@@ -74,100 +111,100 @@ export default function DrawingToolbar() {
 
       {expanded && (
         <div className={`px-4 pb-4 pt-2 space-y-4 transition-opacity duration-200 ${drawingEnabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <label className="text-xs font-medium text-stone-600">笔色</label>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-medium text-stone-600">笔色</label>
+              <input
+                type="color"
+                value={penColor}
+                onChange={(e) => setPenColor(e.target.value)}
+                className="w-6 h-6 rounded border border-stone-200 cursor-pointer bg-transparent"
+              />
+            </div>
+            <div className="grid grid-cols-6 gap-1.5">
+              {penColorPresets.map((c) => (
+                <button
+                  key={c.value}
+                  onClick={() => setPenColor(c.value)}
+                  title={c.name}
+                  className={`aspect-square rounded-md border-2 transition-all hover:scale-105 ${
+                    penColor === c.value
+                      ? 'border-stone-900 ring-2 ring-stone-900/20'
+                      : 'border-transparent'
+                  }`}
+                  style={{ backgroundColor: c.value }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-medium text-stone-600">笔触粗细</label>
+              <span className="text-xs text-stone-500 bg-stone-100 px-2 py-0.5 rounded">
+                {penWidth}px
+              </span>
+            </div>
+            <div className="flex gap-2">
+              {penWidthPresets.map((w) => (
+                <button
+                  key={w.value}
+                  onClick={() => setPenWidth(w.value)}
+                  className={`flex-1 py-1.5 text-xs font-medium rounded-md border transition-all ${
+                    penWidth === w.value
+                      ? 'border-[#8B2E20] bg-[#8B2E20] text-white'
+                      : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
+                  }`}
+                >
+                  {w.label}
+                </button>
+              ))}
+            </div>
             <input
-              type="color"
-              value={penColor}
-              onChange={(e) => setPenColor(e.target.value)}
-              className="w-6 h-6 rounded border border-stone-200 cursor-pointer bg-transparent"
+              type="range"
+              min={1}
+              max={20}
+              value={penWidth}
+              onChange={(e) => setPenWidth(Number(e.target.value))}
+              className="w-full accent-[#8B2E20] cursor-pointer"
             />
           </div>
-          <div className="grid grid-cols-6 gap-1.5">
-            {penColorPresets.map((c) => (
-              <button
-                key={c.value}
-                onClick={() => setPenColor(c.value)}
-                title={c.name}
-                className={`aspect-square rounded-md border-2 transition-all hover:scale-105 ${
-                  penColor === c.value
-                    ? 'border-stone-900 ring-2 ring-stone-900/20'
-                    : 'border-transparent'
-                }`}
-                style={{ backgroundColor: c.value }}
-              />
-            ))}
-          </div>
-        </div>
 
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <label className="text-xs font-medium text-stone-600">笔触粗细</label>
-            <span className="text-xs text-stone-500 bg-stone-100 px-2 py-0.5 rounded">
-              {penWidth}px
-            </span>
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={handleUndo}
+              disabled={!hasUndo}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-medium rounded-lg border transition-all disabled:opacity-40 disabled:cursor-not-allowed border-stone-200 bg-white text-stone-600 hover:bg-stone-50"
+            >
+              <Undo2 size={14} />
+              <span>撤销</span>
+            </button>
+            <button
+              onClick={handleRedo}
+              disabled={!hasRedo}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-medium rounded-lg border transition-all disabled:opacity-40 disabled:cursor-not-allowed border-stone-200 bg-white text-stone-600 hover:bg-stone-50"
+            >
+              <Redo2 size={14} />
+              <span>重做</span>
+            </button>
+            <button
+              onClick={clearAllPaths}
+              disabled={!hasPaths}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-medium rounded-lg border transition-all disabled:opacity-40 disabled:cursor-not-allowed border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+            >
+              <Trash2 size={14} />
+              <span>清除</span>
+            </button>
           </div>
-          <div className="flex gap-2">
-            {penWidthPresets.map((w) => (
-              <button
-                key={w.value}
-                onClick={() => setPenWidth(w.value)}
-                className={`flex-1 py-1.5 text-xs font-medium rounded-md border transition-all ${
-                  penWidth === w.value
-                    ? 'border-[#8B2E20] bg-[#8B2E20] text-white'
-                    : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
-                }`}
-              >
-                {w.label}
-              </button>
-            ))}
-          </div>
-          <input
-            type="range"
-            min={1}
-            max={20}
-            value={penWidth}
-            onChange={(e) => setPenWidth(Number(e.target.value))}
-            className="w-full accent-[#8B2E20] cursor-pointer"
-          />
-        </div>
 
-        <div className="flex gap-2 pt-2">
-          <button
-            onClick={undoPath}
-            disabled={!canUndo}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-medium rounded-lg border transition-all disabled:opacity-40 disabled:cursor-not-allowed border-stone-200 bg-white text-stone-600 hover:bg-stone-50"
-          >
-            <Undo2 size={14} />
-            <span>撤销</span>
-          </button>
-          <button
-            onClick={redoPath}
-            disabled={!canRedo}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-medium rounded-lg border transition-all disabled:opacity-40 disabled:cursor-not-allowed border-stone-200 bg-white text-stone-600 hover:bg-stone-50"
-          >
-            <Redo2 size={14} />
-            <span>重做</span>
-          </button>
-          <button
-            onClick={clearAllPaths}
-            disabled={!hasPaths}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-medium rounded-lg border transition-all disabled:opacity-40 disabled:cursor-not-allowed border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
-          >
-            <Trash2 size={14} />
-            <span>清除</span>
-          </button>
-        </div>
-
-        {drawingEnabled && (
-          <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg border border-amber-200/50">
-            <Eraser size={14} className="text-amber-600 shrink-0" />
-            <p className="text-[11px] text-amber-700 leading-relaxed">
-              已开启临摹模式，可直接在字帖上描红练习。关闭后可正常滚动预览。
-            </p>
-          </div>
-        )}
+          {drawingEnabled && (
+            <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg border border-amber-200/50">
+              <Eraser size={14} className="text-amber-600 shrink-0" />
+              <p className="text-[11px] text-amber-700 leading-relaxed">
+                已开启临摹模式，可直接在字帖上描红练习。关闭后可正常滚动预览。
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
