@@ -7,6 +7,54 @@ export interface ExportOptions {
   marginMm?: number;
 }
 
+async function waitFontsReady(): Promise<void> {
+  try {
+    if (document && (document as any).fonts && (document as any).fonts.ready) {
+      await (document as any).fonts.ready;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  } catch (e) {
+    await new Promise((r) => setTimeout(r, 500));
+  }
+}
+
+async function capturePage(
+  element: HTMLElement,
+  scale: number
+): Promise<{ dataUrl: string; width: number; height: number }> {
+  const canvas = await html2canvas(element, {
+    scale,
+    useCORS: true,
+    allowTaint: true,
+    backgroundColor: '#FFFFFF',
+    logging: false,
+    windowWidth: element.scrollWidth + 100,
+    windowHeight: element.scrollHeight + 100,
+    scrollX: 0,
+    scrollY: 0,
+    x: 0,
+    y: 0,
+    onclone: (clonedDoc) => {
+      const clone = clonedDoc.body.querySelector(
+        `[data-page-index="${element.getAttribute('data-page-index')}"]`
+      ) as HTMLElement | null;
+      if (clone) {
+        clone.style.transform = 'none';
+        clone.style.filter = 'none';
+        clone.style.margin = '0';
+      }
+      const styles = clonedDoc.querySelectorAll('style, link[rel="stylesheet"]');
+      styles.forEach((s) => s.removeAttribute('media'));
+    },
+  });
+
+  return {
+    dataUrl: canvas.toDataURL('image/jpeg', 0.97),
+    width: canvas.width,
+    height: canvas.height,
+  };
+}
+
 export async function exportCopybookToPdf(
   container: HTMLElement,
   options: ExportOptions = {}
@@ -17,7 +65,16 @@ export async function exportCopybookToPdf(
     throw new Error('找不到要导出的元素');
   }
 
-  const pageElements = container.querySelectorAll<HTMLElement>('[data-page-index]');
+  await waitFontsReady();
+
+  const pageElements = Array.from(
+    container.querySelectorAll<HTMLElement>('[data-page-index]')
+  ).sort(
+    (a, b) =>
+      Number(a.getAttribute('data-page-index')) -
+      Number(b.getAttribute('data-page-index'))
+  );
+
   if (pageElements.length === 0) {
     throw new Error('未找到字帖页面');
   }
@@ -37,21 +94,16 @@ export async function exportCopybookToPdf(
   for (let i = 0; i < pageElements.length; i++) {
     const pageEl = pageElements[i];
 
-    const canvas = await html2canvas(pageEl, {
-      scale,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#FFFFFF',
-      logging: false,
-    });
-
-    const imgData = canvas.toDataURL('image/jpeg', 0.96);
+    const { dataUrl, width: imgW, height: imgH } = await capturePage(
+      pageEl,
+      scale
+    );
 
     if (i > 0) {
       pdf.addPage('a4', 'p');
     }
 
-    const imgRatio = canvas.width / canvas.height;
+    const imgRatio = imgW / imgH;
     const pageRatio = drawWidthMm / drawHeightMm;
 
     let w: number, h: number, x: number, y: number;
@@ -68,7 +120,7 @@ export async function exportCopybookToPdf(
       y = marginMm;
     }
 
-    pdf.addImage(imgData, 'JPEG', x, y, w, h, undefined, 'FAST');
+    pdf.addImage(dataUrl, 'JPEG', x, y, w, h, undefined, 'FAST');
   }
 
   pdf.save(filename);
