@@ -9,6 +9,7 @@ import GridConfig from '@/components/ConfigPanel/GridConfig';
 import ColorConfig from '@/components/ConfigPanel/ColorConfig';
 import DifficultySelector from '@/components/ConfigPanel/DifficultySelector';
 import StrokeAnimationModal from '@/components/StrokeAnimationModal';
+import FontCompareModal from '@/components/FontCompareModal';
 import ExportButton from '@/components/ExportButton';
 import CalendarView from '@/components/CalendarView';
 import PosterGenerator from '@/components/PosterGenerator';
@@ -49,6 +50,7 @@ function ConfigSection({ title, icon, children, defaultOpen = true }: SectionPro
 export default function Home() {
   const previewRef = useRef<HTMLDivElement>(null);
   const [posterOpen, setPosterOpen] = useState(false);
+  const [fontCompareOpen, setFontCompareOpen] = useState(false);
   const [posterData, setPosterData] = useState<{
     thumbnail?: string;
     charCount?: number;
@@ -130,7 +132,7 @@ export default function Home() {
               </ConfigSection>
 
               <ConfigSection title="书法字体" icon={<PenTool size={16} strokeWidth={2} />}>
-                <FontSelector />
+                <FontSelector onOpenCompare={() => setFontCompareOpen(true)} />
               </ConfigSection>
 
               <ConfigSection title="难度模式" icon={<Gauge size={16} strokeWidth={2} />}>
@@ -228,6 +230,11 @@ export default function Home() {
       />
 
       <StrokeAnimationModal />
+
+      <FontCompareModal
+        open={fontCompareOpen}
+        onClose={() => setFontCompareOpen(false)}
+      />
     </div>
   );
 }
