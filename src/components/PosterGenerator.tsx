@@ -75,18 +75,14 @@ export default function PosterGenerator({
   const displayTotalChars = stats.totalChars;
   const displayCurrentStreak = stats.currentStreak;
 
-  // 生成真实二维码
+  // 生成真实二维码 - 内容为海报预览页面链接
   useEffect(() => {
     let canceled = false;
     const generate = async () => {
       try {
-        const payload = JSON.stringify({
-          d: record.date,
-          c: record.charCount,
-          s: displayCurrentStreak,
-          t: Date.now(),
-        });
-        const url = await QRCode.toDataURL(payload, {
+        const baseUrl = window.location.origin;
+        const posterUrl = `${baseUrl}/poster/${record.date}`;
+        const url = await QRCode.toDataURL(posterUrl, {
           width: 160,
           margin: 1,
           color: {
@@ -104,7 +100,7 @@ export default function PosterGenerator({
     return () => {
       canceled = true;
     };
-  }, [open, record.date, record.charCount, displayCurrentStreak]);
+  }, [open, record.date]);
 
   const handleDownload = useCallback(async () => {
     if (!posterRef.current) return;
