@@ -187,7 +187,7 @@ export default function GridCell({
     return null;
   };
 
-  const opacity = showTrace && !isEmpty ? traceOpacity : 0;
+  const opacity = !isEmpty ? traceOpacity : 0;
 
   return (
     <div

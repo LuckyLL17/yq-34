@@ -49,25 +49,37 @@ export default function StrokeAnimationModal() {
     }
   }, []);
 
-  const renderStrokesUpTo = useCallback((target: number) => {
-    if (!writerRef.current) return;
+  const renderStrokesUpTo = useCallback(async (target: number): Promise<void> => {
+    if (!writerRef.current || totalStrokes === 0) return;
     const w = writerRef.current as unknown as {
-      hideCharacter: () => void;
+      hideCharacter: () => Promise<void>;
       showCharacter: () => void;
-      hideStroke: (i: number) => void;
-      showStroke: (i: number) => void;
+      animateStroke: (i: number, opts?: { onComplete?: () => void }) => Promise<void>;
+      _options: { strokeAnimationSpeed: number; delayBetweenStrokes: number };
     };
-    w.hideCharacter();
-    if (target > 0) {
-      w.showCharacter();
-      for (let i = target; i < totalStrokes; i++) {
-        w.hideStroke(i);
-      }
+    const origSpeed = w._options.strokeAnimationSpeed;
+    const origDelay = w._options.delayBetweenStrokes;
+    w._options.strokeAnimationSpeed = 100;
+    w._options.delayBetweenStrokes = 0;
+    await w.hideCharacter();
+    if (target <= 0) {
+      w._options.strokeAnimationSpeed = origSpeed;
+      w._options.delayBetweenStrokes = origDelay;
+      return;
     }
+    for (let idx = 0; idx < target; idx++) {
+      if (!writerRef.current) break;
+      await w.animateStroke(idx);
+    }
+    w._options.strokeAnimationSpeed = origSpeed;
+    w._options.delayBetweenStrokes = origDelay;
   }, [totalStrokes]);
 
-  const animateFromStroke = useCallback((startStroke: number) => {
-    if (!writerRef.current) return;
+  const animateFromStroke = useCallback(async (startStroke: number) => {
+    if (!writerRef.current) {
+      console.log('[animateFromStroke] 退出: writerRef 为空');
+      return;
+    }
 
     clearAllTimers();
     isAnimatingRef.current = true;
@@ -79,23 +91,28 @@ export default function StrokeAnimationModal() {
     pendingStrokeRef.current = startStroke;
     setCurrentStroke(startStroke);
 
-    if (startStroke === 0) {
-      renderStrokesUpTo(0);
-    }
-
     const w = writerRef.current as unknown as {
-      animateStroke: (i: number, options: { onComplete?: () => void }) => void;
+      animateStroke: (i: number, options?: { onComplete?: () => void }) => Promise<void>;
+      hideCharacter: () => Promise<void>;
     };
 
-    const animateNext = () => {
-      if (!writerRef.current || !isAnimatingRef.current) return;
+    if (startStroke === 0) {
+      await w.hideCharacter();
+    } else {
+      await renderStrokesUpTo(startStroke);
+    }
 
+    console.log('[animateFromStroke] 开始循环, startStroke=', startStroke, 'totalStrokes=', totalStrokes);
+
+    while (writerRef.current && isAnimatingRef.current) {
       if (isPausedRef.current) {
+        console.log('[animateFromStroke] 暂停中, strokeIdx=', strokeIdx);
         pendingStrokeRef.current = strokeIdx;
         return;
       }
 
       if (strokeIdx >= totalStrokes) {
+        console.log('[animateFromStroke] 播放完成');
         isAnimatingRef.current = false;
         setIsAnimating(false);
         if (isLooping) {
@@ -106,24 +123,31 @@ export default function StrokeAnimationModal() {
         return;
       }
 
-      const currentIdx = strokeIdx;
-      w.animateStroke(currentIdx, {
-        onComplete: () => {
-          if (!isAnimatingRef.current || isPausedRef.current) return;
-          strokeIdx++;
-          pendingStrokeRef.current = strokeIdx;
-          setCurrentStroke(strokeIdx);
-          if (strokeIdx < totalStrokes) {
-            loopTimeoutRef.current = setTimeout(animateNext, 150);
-          } else {
-            animateNext();
-          }
-        },
-      });
-    };
+      console.log('[animateFromStroke] 执行 animateStroke(', strokeIdx, ')');
+      const t0 = Date.now();
+      try {
+        const result = await w.animateStroke(strokeIdx);
+        console.log('[animateFromStroke] animateStroke 完成, 耗时:', Date.now() - t0, 'ms, result=', result);
+      } catch (e) {
+        console.error('[animateFromStroke] animateStroke 错误:', e);
+      }
 
-    if (startStroke < totalStrokes) {
-      animateNext();
+      if (!writerRef.current || !isAnimatingRef.current || isPausedRef.current) {
+        console.log('[animateFromStroke] 中途退出, writer=', !!writerRef.current, 'isAnimating=', isAnimatingRef.current, 'isPaused=', isPausedRef.current);
+        pendingStrokeRef.current = strokeIdx;
+        return;
+      }
+
+      strokeIdx++;
+      pendingStrokeRef.current = strokeIdx;
+      setCurrentStroke(strokeIdx);
+      console.log('[animateFromStroke] 更新到第', strokeIdx, '笔');
+
+      if (strokeIdx < totalStrokes) {
+        await new Promise<void>((resolve) => {
+          loopTimeoutRef.current = setTimeout(resolve, 150);
+        });
+      }
     }
   }, [totalStrokes, isLooping, clearAllTimers, renderStrokesUpTo]);
 
@@ -143,6 +167,7 @@ export default function StrokeAnimationModal() {
     setCurrentStroke(0);
     setIsAnimating(false);
     setIsPaused(false);
+    setTotalStrokes(0);
 
     try {
       const writer = HanziWriter.create(containerRef.current, char, {
@@ -161,7 +186,11 @@ export default function StrokeAnimationModal() {
               if (!res.ok) throw new Error(`HTTP ${res.status}`);
               return res.json();
             })
-            .then(onComplete)
+            .then((data) => {
+              const strokes = data?.strokes?.length || 0;
+              setTotalStrokes(strokes);
+              onComplete(data);
+            })
             .catch((err) => {
               onError?.(err);
             });
@@ -173,13 +202,8 @@ export default function StrokeAnimationModal() {
       });
 
       writerRef.current = writer;
-
-      setTimeout(() => {
-        if (writerRef.current) {
-          const strokes = (writerRef.current as unknown as { _strokes?: unknown[] })._strokes;
-          setTotalStrokes(strokes ? strokes.length : 0);
-        }
-      }, 300);
+      (window as any).__hanziWriter = writer;
+      (window as any).__hanziContainer = containerRef.current;
     } catch (err) {
       console.error('初始化 HanziWriter 失败:', err);
       setError('初始化失败，请重试');
@@ -201,6 +225,12 @@ export default function StrokeAnimationModal() {
       (writerRef.current as unknown as { _options: { strokeAnimationSpeed: number } })._options.strokeAnimationSpeed = speed;
     }
   }, [speed]);
+
+  useEffect(() => {
+    if (totalStrokes > 0) {
+      renderStrokesUpTo(0);
+    }
+  }, [totalStrokes, renderStrokesUpTo]);
 
   useEffect(() => {
     return () => {
@@ -231,7 +261,7 @@ export default function StrokeAnimationModal() {
     animateFromStroke(startFrom);
   };
 
-  const handlePrevStroke = () => {
+  const handlePrevStroke = async () => {
     if (!writerRef.current || error) return;
     clearAllTimers();
     isAnimatingRef.current = false;
@@ -241,10 +271,10 @@ export default function StrokeAnimationModal() {
 
     const target = Math.max(0, currentStroke - 1);
     setCurrentStroke(target);
-    renderStrokesUpTo(target);
+    await renderStrokesUpTo(target);
   };
 
-  const handleNextStroke = () => {
+  const handleNextStroke = async () => {
     if (!writerRef.current || error) return;
     clearAllTimers();
     isAnimatingRef.current = false;
@@ -253,21 +283,22 @@ export default function StrokeAnimationModal() {
     setIsPaused(false);
 
     const target = Math.min(totalStrokes, currentStroke + 1);
-    setCurrentStroke(target);
-    if (target > 0) {
-      renderStrokesUpTo(target);
-      const w = writerRef.current as unknown as {
-        hideStroke: (i: number) => void;
-        animateStroke: (i: number) => void;
-      };
-      for (let i = target; i < totalStrokes; i++) {
-        w.hideStroke(i);
+    if (target > 0 && target <= totalStrokes) {
+      const prev = target - 1;
+      if (prev > 0) {
+        await renderStrokesUpTo(prev);
+      } else {
+        await renderStrokesUpTo(0);
       }
-      w.animateStroke(target - 1);
+      setCurrentStroke(target);
+      const w = writerRef.current as unknown as {
+        animateStroke: (i: number, opts?: { onComplete?: () => void }) => Promise<void>;
+      };
+      await w.animateStroke(target - 1);
     }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (!writerRef.current || error) return;
     clearAllTimers();
     isAnimatingRef.current = false;
@@ -275,11 +306,11 @@ export default function StrokeAnimationModal() {
     setIsAnimating(false);
     setIsPaused(false);
     pendingStrokeRef.current = 0;
-    renderStrokesUpTo(0);
+    await renderStrokesUpTo(0);
     setCurrentStroke(0);
   };
 
-  const handleSpeedChange = (newSpeed: number) => {
+  const handleSpeedChange = async (newSpeed: number) => {
     if (speed === newSpeed) return;
     const wasPlaying = isAnimating && !isPaused;
     const currentPos = isAnimating ? pendingStrokeRef.current : currentStroke;
@@ -292,11 +323,19 @@ export default function StrokeAnimationModal() {
 
     setSpeed(newSpeed);
 
-    setTimeout(() => {
-      if (wasPlaying && writerRef.current) {
-        animateFromStroke(currentPos);
+    setTimeout(async () => {
+      if (writerRef.current) {
+        const w = writerRef.current as unknown as {
+          _options: { strokeAnimationSpeed: number };
+        };
+        if (w._options) {
+          w._options.strokeAnimationSpeed = newSpeed;
+        }
       }
-    }, 50);
+      if (wasPlaying && writerRef.current) {
+        await animateFromStroke(currentPos);
+      }
+    }, 80);
   };
 
   const handleClose = () => {
@@ -375,9 +414,20 @@ export default function StrokeAnimationModal() {
 
             <div
               ref={containerRef}
+              id="stroke-writer-container"
               className="absolute inset-0 flex items-center justify-center"
-              style={{ padding: 10 }}
+              style={{
+                padding: 10,
+              }}
             />
+
+            <style>{`
+              #stroke-writer-container svg,
+              #stroke-writer-container svg * {
+                transition: none !important;
+                animation: none !important;
+              }
+            `}</style>
 
             {error && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
