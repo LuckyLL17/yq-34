@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CopybookConfig, TextType, GridType, DrawingPath, DrawingConfig, PageDrawingPaths, DifficultyLevel, StrokeAnimationState, HeaderFieldConfig, HeaderPosition, PaperTexture, CompletedCells, WatermarkConfig, WatermarkPosition, SortMode } from '@/types';
+import type { CopybookConfig, TextType, GridType, DrawingPath, DrawingConfig, PageDrawingPaths, DifficultyLevel, StrokeAnimationState, HeaderFieldConfig, HeaderPosition, PaperTexture, CompletedCells, WatermarkConfig, WatermarkPosition, SortMode, TraceDisplayMode } from '@/types';
 import { DEFAULT_TEXTS } from '@/utils/presetTexts';
 import { filterByStrokeRange, applySortMode } from '@/utils/strokeCount';
 import { parseTextToPages } from '@/utils/textParser';
@@ -27,6 +27,7 @@ interface CopybookState extends CopybookConfig, DrawingConfig {
   setShowDashed: (show: boolean) => void;
   setShowTrace: (show: boolean) => void;
   setTraceOpacity: (opacity: number) => void;
+  setTraceDisplayMode: (mode: TraceDisplayMode) => void;
   setTitle: (title: string) => void;
   setSubtitle: (subtitle: string) => void;
   setNameField: (field: HeaderFieldConfig) => void;
@@ -81,6 +82,7 @@ const DEFAULT_CONFIG: CopybookConfig & DrawingConfig = {
   showDashed: true,
   showTrace: true,
   traceOpacity: 0.25,
+  traceDisplayMode: 'all',
   title: '',
   subtitle: '',
   nameField: { label: '姓名', visible: true },
@@ -179,6 +181,7 @@ export const useCopybookStore = create<CopybookState>((set, get) => ({
   setShowDashed: (showDashed) => set({ showDashed }),
   setShowTrace: (showTrace) => set({ showTrace }),
   setTraceOpacity: (traceOpacity) => set({ traceOpacity }),
+  setTraceDisplayMode: (traceDisplayMode) => set({ traceDisplayMode }),
   setTitle: (title) => set({ title }),
   setSubtitle: (subtitle) => set({ subtitle }),
   setNameField: (nameField) => set({ nameField }),

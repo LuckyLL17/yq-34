@@ -6,6 +6,8 @@ export type GridType = 'tian' | 'mi' | 'hui' | 'none';
 
 export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced';
 
+export type TraceDisplayMode = 'all' | 'every2' | 'every4' | 'firstRow';
+
 export type PaperTexture = 'white' | 'kraft' | 'rice' | 'parchment' | 'newspaper' | 'cream';
 
 export interface FontOption {
@@ -46,6 +48,7 @@ export interface CopybookConfig {
   showDashed: boolean;
   showTrace: boolean;
   traceOpacity: number;
+  traceDisplayMode: TraceDisplayMode;
   title: string;
   subtitle: string;
   nameField: HeaderFieldConfig;

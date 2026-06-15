@@ -53,6 +53,7 @@ function getTemplateConfigSnapshot(): CopybookConfig {
     showDashed: state.showDashed,
     showTrace: state.showTrace,
     traceOpacity: state.traceOpacity,
+    traceDisplayMode: state.traceDisplayMode,
     title: state.title,
     subtitle: state.subtitle,
     nameField: state.nameField,

@@ -11,6 +11,7 @@ interface GridCellProps {
   showDashed: boolean;
   showTrace: boolean;
   traceOpacity: number;
+  overrideShowTrace?: boolean;
   completion?: number;
   watermark?: WatermarkConfig;
 }
@@ -25,6 +26,7 @@ export default function GridCell({
   showDashed,
   showTrace,
   traceOpacity,
+  overrideShowTrace,
   completion = 0,
   watermark,
 }: GridCellProps) {
@@ -194,7 +196,8 @@ export default function GridCell({
     return null;
   };
 
-  const opacity = !isEmpty ? traceOpacity : 0;
+  const shouldShowTrace = overrideShowTrace !== undefined ? overrideShowTrace : showTrace;
+  const opacity = !isEmpty && shouldShowTrace ? traceOpacity : 0;
 
   return (
     <div

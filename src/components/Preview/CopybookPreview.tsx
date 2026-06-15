@@ -2,7 +2,7 @@ import { forwardRef, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useCopybookStore } from '@/store/useCopybookStore';
 import { getFontById } from '@/utils/fonts';
-import type { CopybookConfig, HeaderPosition, HeaderFieldConfig, PaperTexture, WatermarkConfig } from '@/types';
+import type { CopybookConfig, HeaderPosition, HeaderFieldConfig, PaperTexture, WatermarkConfig, TraceDisplayMode } from '@/types';
 import GridCell from './GridCell';
 import PageDrawingCanvas from './PageDrawingCanvas';
 import { paperTextures } from '@/components/ConfigPanel/PaperTextureSelector';
@@ -36,6 +36,7 @@ const selector = (s: {
   showDashed: CopybookConfig['showDashed'];
   showTrace: CopybookConfig['showTrace'];
   traceOpacity: CopybookConfig['traceOpacity'];
+  traceDisplayMode: TraceDisplayMode;
   title: CopybookConfig['title'];
   subtitle: CopybookConfig['subtitle'];
   nameField: CopybookConfig['nameField'];
@@ -70,6 +71,7 @@ const selector = (s: {
   showDashed: s.showDashed,
   showTrace: s.showTrace,
   traceOpacity: s.traceOpacity,
+  traceDisplayMode: s.traceDisplayMode,
   title: s.title,
   subtitle: s.subtitle,
   nameField: s.nameField,
@@ -150,6 +152,27 @@ const CopybookPreview = forwardRef<HTMLDivElement, CopybookPreviewProps>(
 
     const paperStyle = getPaperTextureStyle(config.paperTexture);
 
+    const shouldShowTraceForCell = (
+      mode: TraceDisplayMode,
+      isEmptyCell: boolean,
+      validCharIndex: number,
+      rowIdx: number
+    ): boolean => {
+      if (isEmptyCell) return false;
+      switch (mode) {
+        case 'all':
+          return true;
+        case 'every2':
+          return validCharIndex % 2 === 0;
+        case 'every4':
+          return validCharIndex % 4 === 0;
+        case 'firstRow':
+          return rowIdx === 0;
+        default:
+          return true;
+      }
+    };
+
     return (
       <div
         ref={ref}
@@ -157,6 +180,7 @@ const CopybookPreview = forwardRef<HTMLDivElement, CopybookPreviewProps>(
       >
         {pageGroups.map((pageRows, pageIdx) => {
           const pageCompletedCells = config.completedCells[pageIdx] || {};
+          let pageValidCharCounter = 0;
           return (
             <div
               key={pageIdx}
@@ -265,6 +289,14 @@ const CopybookPreview = forwardRef<HTMLDivElement, CopybookPreviewProps>(
                         {row.map((char, colIdx) => {
                           const cellKey = `${rowIdx}-${colIdx}`;
                           const completion = pageCompletedCells[cellKey] || 0;
+                          const isEmpty = char === ' ' || char === '' || char === '\u00A0';
+                          const currentValidIndex = isEmpty ? pageValidCharCounter : pageValidCharCounter;
+                          if (!isEmpty) {
+                            pageValidCharCounter++;
+                          }
+                          const overrideShowTrace = config.showTrace
+                            ? shouldShowTraceForCell(config.traceDisplayMode, isEmpty, currentValidIndex, rowIdx)
+                            : undefined;
                           return (
                             <GridCell
                               key={`${rowIdx}-${colIdx}`}
@@ -277,6 +309,7 @@ const CopybookPreview = forwardRef<HTMLDivElement, CopybookPreviewProps>(
                               showDashed={config.showDashed}
                               showTrace={config.showTrace}
                               traceOpacity={config.traceOpacity}
+                              overrideShowTrace={overrideShowTrace}
                               completion={completion}
                               watermark={config.watermark}
                             />

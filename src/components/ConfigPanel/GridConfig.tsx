@@ -1,12 +1,19 @@
 import { useShallow } from 'zustand/react/shallow';
 import { useCopybookStore } from '@/store/useCopybookStore';
-import type { GridType } from '@/types';
+import type { GridType, TraceDisplayMode } from '@/types';
 
 const gridTypes: { id: GridType; label: string }[] = [
   { id: 'tian', label: '田字格' },
   { id: 'mi', label: '米字格' },
   { id: 'hui', label: '回宫格' },
   { id: 'none', label: '无格线' },
+];
+
+const traceDisplayModes: { id: TraceDisplayMode; label: string; hint: string }[] = [
+  { id: 'all', label: '全部显示', hint: '每个格子都显示范字' },
+  { id: 'every2', label: '每2字1个', hint: '隔1格显示1个范字' },
+  { id: 'every4', label: '每4字1个', hint: '隔3格显示1个范字' },
+  { id: 'firstRow', label: '仅首行', hint: '只显示第一行范字' },
 ];
 
 export default function GridConfig() {
@@ -18,6 +25,7 @@ export default function GridConfig() {
     showDashed,
     showTrace,
     traceOpacity,
+    traceDisplayMode,
     setGridType,
     setCellSize,
     setColsPerRow,
@@ -25,6 +33,7 @@ export default function GridConfig() {
     setShowDashed,
     setShowTrace,
     setTraceOpacity,
+    setTraceDisplayMode,
   } = useCopybookStore(
     useShallow((s) => ({
       gridType: s.gridType,
@@ -34,6 +43,7 @@ export default function GridConfig() {
       showDashed: s.showDashed,
       showTrace: s.showTrace,
       traceOpacity: s.traceOpacity,
+      traceDisplayMode: s.traceDisplayMode,
       setGridType: s.setGridType,
       setCellSize: s.setCellSize,
       setColsPerRow: s.setColsPerRow,
@@ -41,6 +51,7 @@ export default function GridConfig() {
       setShowDashed: s.setShowDashed,
       setShowTrace: s.setShowTrace,
       setTraceOpacity: s.setTraceOpacity,
+      setTraceDisplayMode: s.setTraceDisplayMode,
     }))
   );
 
@@ -155,21 +166,49 @@ export default function GridConfig() {
         </label>
 
         {showTrace && (
-          <div className="space-y-2 pl-1">
-            <div className="flex justify-between items-center">
-              <label className="text-xs text-stone-500">描红透明度</label>
-              <span className="text-xs text-stone-500 bg-stone-100 px-2 py-0.5 rounded">
-                {Math.round(traceOpacity * 100)}%
-              </span>
+          <div className="space-y-4 pl-1">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="text-xs text-stone-500">描红透明度</label>
+                <span className="text-xs text-stone-500 bg-stone-100 px-2 py-0.5 rounded">
+                  {Math.round(traceOpacity * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={5}
+                max={60}
+                value={traceOpacity * 100}
+                onChange={(e) => setTraceOpacity(Number(e.target.value) / 100)}
+                className="w-full accent-[#8B2E20] cursor-pointer"
+              />
             </div>
-            <input
-              type="range"
-              min={5}
-              max={60}
-              value={traceOpacity * 100}
-              onChange={(e) => setTraceOpacity(Number(e.target.value) / 100)}
-              className="w-full accent-[#8B2E20] cursor-pointer"
-            />
+
+            <div className="space-y-2">
+              <label className="block text-xs font-medium text-stone-600">范字显示方式</label>
+              <div className="grid grid-cols-2 gap-1.5">
+                {traceDisplayModes.map((m) => {
+                  const active = traceDisplayMode === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => setTraceDisplayMode(m.id)}
+                      title={m.hint}
+                      className={`py-2 px-2 text-xs font-medium rounded-md border transition-all duration-200 text-left ${
+                        active
+                          ? 'border-[#8B2E20] bg-[#8B2E20] text-white shadow-sm'
+                          : 'border-stone-200 bg-white text-stone-500 hover:border-stone-300 hover:bg-stone-50'
+                      }`}
+                    >
+                      <div className="font-semibold">{m.label}</div>
+                      <div className={`mt-0.5 text-[10px] leading-tight ${active ? 'text-white/80' : 'text-stone-400'}`}>
+                        {m.hint}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
       </div>
