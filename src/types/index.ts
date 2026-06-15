@@ -133,6 +133,17 @@ export interface CopybookTemplate {
   previewText?: string;
 }
 
+export interface ColorTheme {
+  id: string;
+  name: string;
+  description: string;
+  fontColor: string;
+  gridColor: string;
+  paperTexture: PaperTexture;
+  watermarkColor: string;
+  previewColors: string[];
+}
+
 export interface TemplateStore {
   templates: CopybookTemplate[];
   selectedTemplateIds: string[];

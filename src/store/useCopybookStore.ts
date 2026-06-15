@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CopybookConfig, TextType, GridType, DrawingPath, DrawingConfig, PageDrawingPaths, DifficultyLevel, StrokeAnimationState, HeaderFieldConfig, HeaderPosition, PaperTexture, CompletedCells, WatermarkConfig, WatermarkPosition, SortMode, TraceDisplayMode } from '@/types';
+import type { CopybookConfig, TextType, GridType, DrawingPath, DrawingConfig, PageDrawingPaths, DifficultyLevel, StrokeAnimationState, HeaderFieldConfig, HeaderPosition, PaperTexture, CompletedCells, WatermarkPosition, SortMode, TraceDisplayMode, ColorTheme } from '@/types';
 import { DEFAULT_TEXTS } from '@/utils/presetTexts';
 import { filterByStrokeRange, applySortMode } from '@/utils/strokeCount';
 import { parseTextToPages } from '@/utils/textParser';
@@ -67,6 +67,7 @@ interface CopybookState extends CopybookConfig, DrawingConfig {
   applyStrokeFilter: () => void;
   applyTextSort: () => void;
   resetTextProcessing: () => void;
+  applyColorTheme: (theme: ColorTheme) => void;
 }
 
 const DEFAULT_CONFIG: CopybookConfig & DrawingConfig = {
@@ -377,6 +378,17 @@ export const useCopybookStore = create<CopybookState>((set, get) => ({
       completedCells: {},
     });
   },
+
+  applyColorTheme: (theme) =>
+    set((state) => ({
+      fontColor: theme.fontColor,
+      gridColor: theme.gridColor,
+      paperTexture: theme.paperTexture,
+      watermark: {
+        ...state.watermark,
+        color: theme.watermarkColor,
+      },
+    })),
 }));
 
 export { COMPLETION_THRESHOLD };
