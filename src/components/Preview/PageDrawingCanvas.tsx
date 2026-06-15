@@ -4,6 +4,7 @@ import { useCopybookStore } from '@/store/useCopybookStore';
 import type { DrawingPath } from '@/types';
 
 const EMPTY_ARRAY: DrawingPath[] = [];
+const LINE_NUMBER_WIDTH = 28;
 
 interface PageDrawingCanvasProps {
   pageIndex: number;
@@ -22,14 +23,44 @@ const PageDrawingCanvas = forwardRef<PageDrawingCanvasHandle, PageDrawingCanvasP
     const currentPathRef = useRef<{ x: number; y: number }[]>([]);
     const lastPointRef = useRef<{ x: number; y: number } | null>(null);
 
-    const { pagePaths, penColor, penWidth, drawingEnabled, addPathToPage } = useCopybookStore(
+    const { pagePaths, penColor, penWidth, drawingEnabled, addPathToPage, cellSize, colsPerRow, rows, showLineNumbers, setCellCompletion } = useCopybookStore(
       useShallow((s) => ({
         pagePaths: s.pagePaths[pageIndex] ?? EMPTY_ARRAY,
         penColor: s.penColor,
         penWidth: s.penWidth,
         drawingEnabled: s.drawingEnabled,
         addPathToPage: s.addPathToPage,
+        cellSize: s.cellSize,
+        colsPerRow: s.colsPerRow,
+        rows: s.rows,
+        showLineNumbers: s.showLineNumbers,
+        setCellCompletion: s.setCellCompletion,
       }))
+    );
+
+    const lineNumberWidth = showLineNumbers ? LINE_NUMBER_WIDTH : 0;
+
+    const calculateCellCoverage = useCallback(
+      (allPaths: DrawingPath[]) => {
+        if (!drawingEnabled || allPaths.length === 0) return;
+
+        const gridWidth = colsPerRow * cellSize;
+        const gridHeight = rows * cellSize;
+
+        for (let row = 0; row < rows; row++) {
+          for (let col = 0; col < colsPerRow; col++) {
+            const cellX = lineNumberWidth + col * cellSize;
+            const cellY = row * cellSize;
+
+            if (cellX >= gridWidth + lineNumberWidth || cellY >= gridHeight) continue;
+
+            const cellKey = `${row}-${col}`;
+            const coverage = calculateSingleCellCoverage(cellX, cellY, cellSize, allPaths);
+            setCellCompletion(pageIndex, cellKey, coverage);
+          }
+        }
+      },
+      [drawingEnabled, colsPerRow, rows, cellSize, lineNumberWidth, setCellCompletion, pageIndex]
     );
 
     const getCanvasCoords = useCallback(
@@ -244,6 +275,23 @@ const PageDrawingCanvas = forwardRef<PageDrawingCanvasHandle, PageDrawingCanvasP
       redrawCanvas();
     }, [redrawCanvas]);
 
+    useEffect(() => {
+      if (drawingEnabled) {
+        calculateCellCoverage(pagePaths);
+      }
+    }, [pagePaths, drawingEnabled, calculateCellCoverage]);
+
+    useEffect(() => {
+      if (!drawingEnabled) {
+        for (let row = 0; row < rows; row++) {
+          for (let col = 0; col < colsPerRow; col++) {
+            const cellKey = `${row}-${col}`;
+            setCellCompletion(pageIndex, cellKey, 0);
+          }
+        }
+      }
+    }, [drawingEnabled, pageIndex, rows, colsPerRow, setCellCompletion]);
+
     const handleCanvasMouseUp = useCallback(() => {
       handleMouseUp();
     }, [handleMouseUp]);
@@ -262,5 +310,70 @@ const PageDrawingCanvas = forwardRef<PageDrawingCanvasHandle, PageDrawingCanvasP
     );
   }
 );
+
+function calculateSingleCellCoverage(
+  cellX: number,
+  cellY: number,
+  cellSize: number,
+  paths: DrawingPath[]
+): number {
+  const margin = cellSize * 0.12;
+  const effectiveX = cellX + margin;
+  const effectiveY = cellY + margin;
+  const effectiveSize = cellSize - margin * 2;
+
+  const sectors = 9;
+  const sectorSize = effectiveSize / 3;
+  const coveredSectors = new Set<number>();
+
+  let totalPathLength = 0;
+  const cellPaths: DrawingPath[] = [];
+
+  for (const path of paths) {
+    const cellPoints: { x: number; y: number }[] = [];
+    for (let i = 0; i < path.points.length; i++) {
+      const p = path.points[i];
+      if (
+        p.x >= effectiveX &&
+        p.x <= effectiveX + effectiveSize &&
+        p.y >= effectiveY &&
+        p.y <= effectiveY + effectiveSize
+      ) {
+        cellPoints.push(p);
+      }
+    }
+
+    if (cellPoints.length >= 2) {
+      let pathLen = 0;
+      for (let i = 1; i < cellPoints.length; i++) {
+        const dx = cellPoints[i].x - cellPoints[i - 1].x;
+        const dy = cellPoints[i].y - cellPoints[i - 1].y;
+        pathLen += Math.sqrt(dx * dx + dy * dy);
+      }
+      totalPathLength += pathLen;
+      cellPaths.push({ ...path, points: cellPoints });
+
+      for (const p of cellPoints) {
+        const relX = p.x - effectiveX;
+        const relY = p.y - effectiveY;
+        const col = Math.min(2, Math.floor(relX / sectorSize));
+        const row = Math.min(2, Math.floor(relY / sectorSize));
+        const sectorIdx = row * 3 + col;
+        coveredSectors.add(sectorIdx);
+      }
+    }
+  }
+
+  if (coveredSectors.size === 0 && totalPathLength === 0) {
+    return 0;
+  }
+
+  const sectorCoverage = coveredSectors.size / sectors;
+  const minPathLength = cellSize * 1.5;
+  const pathLengthCoverage = Math.min(1, totalPathLength / minPathLength);
+
+  const finalCoverage = sectorCoverage * 0.55 + pathLengthCoverage * 0.45;
+  return Math.min(1, Math.max(0, finalCoverage));
+}
 
 export default PageDrawingCanvas;

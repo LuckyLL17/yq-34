@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CopybookConfig, TextType, GridType, DrawingPath, DrawingConfig, PageDrawingPaths, DifficultyLevel, StrokeAnimationState, HeaderFieldConfig, HeaderPosition } from '@/types';
+import type { CopybookConfig, TextType, GridType, DrawingPath, DrawingConfig, PageDrawingPaths, DifficultyLevel, StrokeAnimationState, HeaderFieldConfig, HeaderPosition, PaperTexture, CompletedCells } from '@/types';
 import { DEFAULT_TEXTS } from '@/utils/presetTexts';
 
 interface CopybookState extends CopybookConfig, DrawingConfig {
@@ -7,6 +7,7 @@ interface CopybookState extends CopybookConfig, DrawingConfig {
   pageRedoStack: PageDrawingPaths;
   difficultyLevel: DifficultyLevel;
   strokeAnimation: StrokeAnimationState;
+  completedCells: CompletedCells;
   setTextType: (type: TextType) => void;
   setText: (text: string) => void;
   setFontId: (fontId: string) => void;
@@ -26,6 +27,7 @@ interface CopybookState extends CopybookConfig, DrawingConfig {
   setClassField: (field: HeaderFieldConfig) => void;
   setHeaderPosition: (position: HeaderPosition) => void;
   setShowLineNumbers: (show: boolean) => void;
+  setPaperTexture: (texture: PaperTexture) => void;
   updateConfig: (partial: Partial<CopybookConfig>) => void;
   resetConfig: () => void;
   setPenColor: (color: string) => void;
@@ -39,6 +41,11 @@ interface CopybookState extends CopybookConfig, DrawingConfig {
   setDifficultyLevel: (level: DifficultyLevel) => void;
   openStrokeAnimation: (char: string) => void;
   closeStrokeAnimation: () => void;
+  setCellCompletion: (pageIndex: number, cellKey: string, completion: number) => void;
+  clearCompletedCells: () => void;
+  getCompletionPercentage: () => number;
+  getTotalValidCells: () => number;
+  getCompletedCellsCount: () => number;
 }
 
 const DEFAULT_CONFIG: CopybookConfig & DrawingConfig = {
@@ -61,6 +68,7 @@ const DEFAULT_CONFIG: CopybookConfig & DrawingConfig = {
   classField: { label: '班级', visible: false },
   headerPosition: 'center',
   showLineNumbers: false,
+  paperTexture: 'white',
   penColor: '#1a1a1a',
   penWidth: 3,
   drawingEnabled: false,
@@ -96,12 +104,15 @@ const DIFFICULTY_PRESETS: Record<DifficultyLevel, Partial<CopybookConfig>> = {
   },
 };
 
+const COMPLETION_THRESHOLD = 0.6;
+
 export const useCopybookStore = create<CopybookState>((set, get) => ({
   ...DEFAULT_CONFIG,
   pagePaths: {},
   pageRedoStack: {},
   difficultyLevel: 'intermediate',
   strokeAnimation: { isOpen: false, char: '' },
+  completedCells: {},
 
   setTextType: (type) =>
     set(() => {
@@ -116,15 +127,16 @@ export const useCopybookStore = create<CopybookState>((set, get) => ({
         fontId,
         colsPerRow: type === 'english' ? 14 : type === 'number' ? 12 : 10,
         rows: 14,
+        completedCells: {},
       };
     }),
 
-  setText: (text) => set({ text }),
+  setText: (text) => set({ text, completedCells: {} }),
   setFontId: (fontId) => set({ fontId }),
   setGridType: (gridType) => set({ gridType }),
   setCellSize: (cellSize) => set({ cellSize: Math.max(32, Math.min(120, cellSize)) }),
-  setColsPerRow: (colsPerRow) => set({ colsPerRow: Math.max(4, Math.min(20, colsPerRow)) }),
-  setRows: (rows) => set({ rows: Math.max(4, Math.min(30, rows)) }),
+  setColsPerRow: (colsPerRow) => set({ colsPerRow: Math.max(4, Math.min(20, colsPerRow)), completedCells: {} }),
+  setRows: (rows) => set({ rows: Math.max(4, Math.min(30, rows)), completedCells: {} }),
   setFontColor: (fontColor) => set({ fontColor }),
   setGridColor: (gridColor) => set({ gridColor }),
   setShowDashed: (showDashed) => set({ showDashed }),
@@ -137,8 +149,9 @@ export const useCopybookStore = create<CopybookState>((set, get) => ({
   setClassField: (classField) => set({ classField }),
   setHeaderPosition: (headerPosition) => set({ headerPosition }),
   setShowLineNumbers: (showLineNumbers) => set({ showLineNumbers }),
+  setPaperTexture: (paperTexture) => set({ paperTexture }),
   updateConfig: (partial) => set(partial),
-  resetConfig: () => set({ ...DEFAULT_CONFIG, pagePaths: {}, pageRedoStack: {} }),
+  resetConfig: () => set({ ...DEFAULT_CONFIG, pagePaths: {}, pageRedoStack: {}, completedCells: {} }),
 
   setPenColor: (penColor) => set({ penColor }),
   setPenWidth: (penWidth) => set({ penWidth: Math.max(1, Math.min(20, penWidth)) }),
@@ -195,17 +208,20 @@ export const useCopybookStore = create<CopybookState>((set, get) => ({
     });
   },
 
-  clearAllPaths: () => set({ pagePaths: {}, pageRedoStack: {} }),
+  clearAllPaths: () => set({ pagePaths: {}, pageRedoStack: {}, completedCells: {} }),
 
   clearPagePaths: (pageIndex) =>
     set((state) => {
       const newPagePaths = { ...state.pagePaths };
       const newPageRedoStack = { ...state.pageRedoStack };
+      const newCompletedCells = { ...state.completedCells };
       delete newPagePaths[pageIndex];
       delete newPageRedoStack[pageIndex];
+      delete newCompletedCells[pageIndex];
       return {
         pagePaths: newPagePaths,
         pageRedoStack: newPageRedoStack,
+        completedCells: newCompletedCells,
       };
     }),
 
@@ -213,6 +229,7 @@ export const useCopybookStore = create<CopybookState>((set, get) => ({
     set(() => ({
       difficultyLevel: level,
       ...DIFFICULTY_PRESETS[level],
+      completedCells: {},
     })),
 
   openStrokeAnimation: (char) =>
@@ -224,4 +241,49 @@ export const useCopybookStore = create<CopybookState>((set, get) => ({
     set((state) => ({
       strokeAnimation: { ...state.strokeAnimation, isOpen: false },
     })),
+
+  setCellCompletion: (pageIndex, cellKey, completion) =>
+    set((state) => {
+      const pageCompleted = state.completedCells[pageIndex] || {};
+      const newPageCompleted = { ...pageCompleted, [cellKey]: completion };
+      return {
+        completedCells: {
+          ...state.completedCells,
+          [pageIndex]: newPageCompleted,
+        },
+      };
+    }),
+
+  clearCompletedCells: () => set({ completedCells: {} }),
+
+  getTotalValidCells: () => {
+    const { text, colsPerRow, rows } = get();
+    const charsPerPage = colsPerRow * rows;
+    const validChars = Array.from(text).filter((ch) => ch !== '\n' && ch !== '\r' && ch !== '\t' && ch !== ' ').length;
+    const totalPages = Math.max(1, Math.ceil(validChars / charsPerPage));
+    return Math.min(validChars, totalPages * charsPerPage);
+  },
+
+  getCompletedCellsCount: () => {
+    const { completedCells } = get();
+    let count = 0;
+    for (const pageIdx in completedCells) {
+      const pageCells = completedCells[Number(pageIdx)];
+      for (const key in pageCells) {
+        if (pageCells[key] >= COMPLETION_THRESHOLD) {
+          count++;
+        }
+      }
+    }
+    return count;
+  },
+
+  getCompletionPercentage: () => {
+    const total = get().getTotalValidCells();
+    if (total === 0) return 0;
+    const completed = get().getCompletedCellsCount();
+    return Math.round((completed / total) * 100);
+  },
 }));
+
+export { COMPLETION_THRESHOLD };

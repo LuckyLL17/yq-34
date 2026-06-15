@@ -2,15 +2,24 @@ import { forwardRef, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useCopybookStore } from '@/store/useCopybookStore';
 import { getFontById } from '@/utils/fonts';
-import type { CopybookConfig, HeaderPosition, HeaderFieldConfig } from '@/types';
+import type { CopybookConfig, HeaderPosition, HeaderFieldConfig, PaperTexture } from '@/types';
 import GridCell from './GridCell';
 import PageDrawingCanvas from './PageDrawingCanvas';
+import { paperTextures } from '@/components/ConfigPanel/PaperTextureSelector';
 
 interface CopybookPreviewProps {
   className?: string;
 }
 
 const A4_RATIO = 297 / 210;
+
+const getPaperTextureStyle = (texture: PaperTexture): React.CSSProperties => {
+  const option = paperTextures.find((p) => p.value === texture);
+  if (option) {
+    return option.previewStyle;
+  }
+  return { backgroundColor: '#ffffff' };
+};
 
 const selector = (s: {
   textType: CopybookConfig['textType'];
@@ -32,6 +41,8 @@ const selector = (s: {
   classField: CopybookConfig['classField'];
   headerPosition: CopybookConfig['headerPosition'];
   showLineNumbers: CopybookConfig['showLineNumbers'];
+  paperTexture: CopybookConfig['paperTexture'];
+  completedCells: any;
 }): CopybookConfig & {
   title: string;
   subtitle: string;
@@ -40,6 +51,8 @@ const selector = (s: {
   classField: HeaderFieldConfig;
   headerPosition: HeaderPosition;
   showLineNumbers: boolean;
+  paperTexture: PaperTexture;
+  completedCells: any;
 } => ({
   textType: s.textType,
   text: s.text,
@@ -60,6 +73,8 @@ const selector = (s: {
   classField: s.classField,
   headerPosition: s.headerPosition,
   showLineNumbers: s.showLineNumbers,
+  paperTexture: s.paperTexture,
+  completedCells: s.completedCells,
 });
 
 const LINE_NUMBER_WIDTH = 28;
@@ -144,137 +159,144 @@ const CopybookPreview = forwardRef<HTMLDivElement, CopybookPreviewProps>(
         ? 'justify-end'
         : 'justify-center';
 
+    const paperStyle = getPaperTextureStyle(config.paperTexture);
+
     return (
       <div
         ref={ref}
         className={`flex flex-col items-center gap-8 ${className || ''}`}
       >
-        {pageGroups.map((pageRows, pageIdx) => (
-          <div
-            key={pageIdx}
-            className="bg-white rounded-lg shadow-2xl relative overflow-hidden"
-            style={{
-              width: pageWidth,
-              height: pageHeight,
-              backgroundImage: `
-                radial-gradient(circle at 20% 20%, rgba(212, 165, 116, 0.04) 0%, transparent 50%),
-                radial-gradient(circle at 80% 80%, rgba(139, 46, 32, 0.03) 0%, transparent 50%)
-              `,
-            }}
-            data-page-index={pageIdx}
-          >
+        {pageGroups.map((pageRows, pageIdx) => {
+          const pageCompletedCells = config.completedCells[pageIdx] || {};
+          return (
             <div
-              className="absolute flex flex-col"
+              key={pageIdx}
+              className="bg-white rounded-lg shadow-2xl relative overflow-hidden"
               style={{
-                top: paddingY,
-                left: paddingX,
-                right: paddingX,
-                bottom: paddingY,
+                width: pageWidth,
+                height: pageHeight,
+                ...paperStyle,
               }}
+              data-page-index={pageIdx}
             >
               <div
-                className={`flex flex-col shrink-0 ${headerAlignClass}`}
-                style={{ height: headerHeight }}
+                className="absolute flex flex-col"
+                style={{
+                  top: paddingY,
+                  left: paddingX,
+                  right: paddingX,
+                  bottom: paddingY,
+                }}
               >
-                <h2
-                  className="text-lg md:text-xl font-bold text-stone-700 leading-tight"
-                  style={{
-                    fontFamily:
-                      '"Noto Serif SC", "STSong", "SimSun", serif',
-                  }}
+                <div
+                  className={`flex flex-col shrink-0 ${headerAlignClass}`}
+                  style={{ height: headerHeight }}
                 >
-                  {pageTitle}
-                </h2>
-                {hasSubtitle && (
-                  <p
-                    className="text-xs md:text-sm text-stone-500 mt-0.5 leading-snug"
+                  <h2
+                    className="text-lg md:text-xl font-bold text-stone-700 leading-tight"
                     style={{
                       fontFamily:
                         '"Noto Serif SC", "STSong", "SimSun", serif',
                     }}
                   >
-                    {config.subtitle}
-                  </p>
-                )}
-                <div className={`flex gap-5 text-xs md:text-sm text-stone-500 mt-1.5 ${infoAlignClass}`}>
-                  {config.nameField.visible && (
-                    <span>{config.nameField.label}：__________</span>
+                    {pageTitle}
+                  </h2>
+                  {hasSubtitle && (
+                    <p
+                      className="text-xs md:text-sm text-stone-500 mt-0.5 leading-snug"
+                      style={{
+                        fontFamily:
+                          '"Noto Serif SC", "STSong", "SimSun", serif',
+                      }}
+                    >
+                      {config.subtitle}
+                    </p>
                   )}
-                  {config.dateField.visible && (
-                    <span>{config.dateField.label}：__________</span>
-                  )}
-                  {config.classField.visible && (
-                    <span>{config.classField.label}：__________</span>
-                  )}
+                  <div className={`flex gap-5 text-xs md:text-sm text-stone-500 mt-1.5 ${infoAlignClass}`}>
+                    {config.nameField.visible && (
+                      <span>{config.nameField.label}：__________</span>
+                    )}
+                    {config.dateField.visible && (
+                      <span>{config.dateField.label}：__________</span>
+                    )}
+                    {config.classField.visible && (
+                      <span>{config.classField.label}：__________</span>
+                    )}
+                    <span>
+                      第 <span className="font-medium text-stone-700">{pageIdx + 1}</span> /{' '}
+                      {totalPages} 页
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex-1 flex items-center justify-center py-2 overflow-hidden">
+                  <div
+                    className="flex flex-col relative"
+                    style={{
+                      width: gridWidth + lineNumberWidth,
+                      height: gridHeight,
+                    }}
+                  >
+                    {pageRows.map((row, rowIdx) => (
+                      <div key={rowIdx} className="flex">
+                        {config.showLineNumbers && (
+                          <div
+                            className="shrink-0 flex items-center justify-center text-stone-400 select-none"
+                            style={{
+                              width: lineNumberWidth,
+                              height: config.cellSize,
+                              fontSize: Math.max(9, config.cellSize * 0.18),
+                              fontFamily: '"Noto Serif SC", "STSong", serif',
+                            }}
+                          >
+                            {rowIdx + 1}
+                          </div>
+                        )}
+                        {row.map((char, colIdx) => {
+                          const cellKey = `${rowIdx}-${colIdx}`;
+                          const completion = pageCompletedCells[cellKey] || 0;
+                          return (
+                            <GridCell
+                              key={`${rowIdx}-${colIdx}`}
+                              char={char}
+                              cellSize={config.cellSize}
+                              gridType={config.gridType}
+                              gridColor={config.gridColor}
+                              fontColor={config.fontColor}
+                              fontFamily={font.family}
+                              showDashed={config.showDashed}
+                              showTrace={config.showTrace}
+                              traceOpacity={config.traceOpacity}
+                              completion={completion}
+                            />
+                          );
+                        })}
+                      </div>
+                    ))}
+                    <PageDrawingCanvas
+                      pageIndex={pageIdx}
+                      pageWidth={gridWidth + lineNumberWidth}
+                      pageHeight={gridHeight}
+                    />
+                  </div>
+                </div>
+
+                <div
+                  className="shrink-0 flex items-center justify-between pt-3 border-t border-stone-200 text-xs text-stone-400"
+                  style={{ height: footerHeight }}
+                >
                   <span>
-                    第 <span className="font-medium text-stone-700">{pageIdx + 1}</span> /{' '}
-                    {totalPages} 页
+                    字体：{font.name} · 格子：{config.colsPerRow} × {config.rows}
+                  </span>
+                  <span>
+                    墨韵字帖生成器 · 本页 {pageRows.flat().filter((c) => c !== ' ').length} /{' '}
+                    {allChars.length} 字
                   </span>
                 </div>
               </div>
-
-              <div className="flex-1 flex items-center justify-center py-2 overflow-hidden">
-                <div
-                  className="flex flex-col relative"
-                  style={{
-                    width: gridWidth + lineNumberWidth,
-                    height: gridHeight,
-                  }}
-                >
-                  {pageRows.map((row, rowIdx) => (
-                    <div key={rowIdx} className="flex">
-                      {config.showLineNumbers && (
-                        <div
-                          className="shrink-0 flex items-center justify-center text-stone-400 select-none"
-                          style={{
-                            width: lineNumberWidth,
-                            height: config.cellSize,
-                            fontSize: Math.max(9, config.cellSize * 0.18),
-                            fontFamily: '"Noto Serif SC", "STSong", serif',
-                          }}
-                        >
-                          {rowIdx + 1}
-                        </div>
-                      )}
-                      {row.map((char, colIdx) => (
-                        <GridCell
-                          key={`${rowIdx}-${colIdx}`}
-                          char={char}
-                          cellSize={config.cellSize}
-                          gridType={config.gridType}
-                          gridColor={config.gridColor}
-                          fontColor={config.fontColor}
-                          fontFamily={font.family}
-                          showDashed={config.showDashed}
-                          showTrace={config.showTrace}
-                          traceOpacity={config.traceOpacity}
-                        />
-                      ))}
-                    </div>
-                  ))}
-                  <PageDrawingCanvas
-                    pageIndex={pageIdx}
-                    pageWidth={gridWidth + lineNumberWidth}
-                    pageHeight={gridHeight}
-                  />
-                </div>
-              </div>
-
-              <div
-                className="shrink-0 flex items-center justify-between pt-3 border-t border-stone-200 text-xs text-stone-400"
-                style={{ height: footerHeight }}
-              >
-                <span>
-                  字体：{font.name} · 格子：{config.colsPerRow} × {config.rows}
-                </span>
-                <span>
-                  墨韵字帖生成器 · 本页 {pageRows.flat().filter((c) => c !== ' ').length} /{' '}
-                  {allChars.length} 字
-                </span>
-              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   }

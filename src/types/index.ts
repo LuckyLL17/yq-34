@@ -4,6 +4,8 @@ export type GridType = 'tian' | 'mi' | 'hui' | 'none';
 
 export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced';
 
+export type PaperTexture = 'white' | 'kraft' | 'rice' | 'parchment' | 'newspaper' | 'cream';
+
 export interface FontOption {
   id: string;
   name: string;
@@ -38,6 +40,13 @@ export interface CopybookConfig {
   classField: HeaderFieldConfig;
   headerPosition: HeaderPosition;
   showLineNumbers: boolean;
+  paperTexture: PaperTexture;
+}
+
+export interface CompletedCells {
+  [pageIndex: number]: {
+    [cellKey: string]: number;
+  };
 }
 
 export interface PresetText {

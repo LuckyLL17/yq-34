@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { Undo2, Redo2, Eraser, Pencil, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { Undo2, Redo2, Eraser, Pencil, Trash2, ChevronUp, ChevronDown, Target, CheckCircle2 } from 'lucide-react';
 import { useCopybookStore } from '@/store/useCopybookStore';
 
 const penColorPresets = [
@@ -33,6 +33,9 @@ export default function DrawingToolbar() {
     undoPath,
     redoPath,
     clearAllPaths,
+    getCompletionPercentage,
+    getCompletedCellsCount,
+    getTotalValidCells,
   } = useCopybookStore(
     useShallow((s) => ({
       drawingEnabled: s.drawingEnabled,
@@ -46,6 +49,9 @@ export default function DrawingToolbar() {
       undoPath: s.undoPath,
       redoPath: s.redoPath,
       clearAllPaths: s.clearAllPaths,
+      getCompletionPercentage: s.getCompletionPercentage,
+      getCompletedCellsCount: s.getCompletedCellsCount,
+      getTotalValidCells: s.getTotalValidCells,
     }))
   );
 
@@ -67,6 +73,11 @@ export default function DrawingToolbar() {
     return { hasUndo: undo, hasRedo: redo, hasPaths: paths };
   }, [pagePaths, pageRedoStack]);
 
+  const completionPercentage = useMemo(() => getCompletionPercentage(), [getCompletionPercentage, pagePaths]);
+  const completedCount = useMemo(() => getCompletedCellsCount(), [getCompletedCellsCount, pagePaths]);
+  const totalCells = useMemo(() => getTotalValidCells(), [getTotalValidCells]);
+  const isAllComplete = completionPercentage >= 100;
+
   const handleUndo = () => {
     for (const key in pagePaths) {
       if (pagePaths[key] && pagePaths[key].length > 0) {
@@ -83,6 +94,13 @@ export default function DrawingToolbar() {
     if (redoKeys.length > 0) {
       redoPath(Number(redoKeys[redoKeys.length - 1]));
     }
+  };
+
+  const getProgressColor = () => {
+    if (completionPercentage >= 100) return 'from-green-400 to-green-600';
+    if (completionPercentage >= 60) return 'from-green-400 to-emerald-500';
+    if (completionPercentage >= 30) return 'from-amber-400 to-yellow-500';
+    return 'from-stone-300 to-stone-400';
   };
 
   return (
@@ -103,6 +121,29 @@ export default function DrawingToolbar() {
           )}
         </div>
         <div className="flex items-center gap-3">
+          {drawingEnabled && (
+            <div className="hidden sm:flex items-center gap-2 mr-2">
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-stone-50 border border-stone-200">
+                <Target size={14} className="text-stone-500" />
+                <span className="text-[11px] font-medium text-stone-600">
+                  进度
+                </span>
+                <div className="w-20 h-2 bg-stone-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full bg-gradient-to-r ${getProgressColor()} transition-all duration-500 ease-out rounded-full`}
+                    style={{ width: `${completionPercentage}%` }}
+                  />
+                </div>
+                <span
+                  className={`text-[11px] font-bold min-w-[32px] ${
+                    isAllComplete ? 'text-green-600' : 'text-stone-700'
+                  }`}
+                >
+                  {completionPercentage}%
+                </span>
+              </div>
+            </div>
+          )}
           <button
             onClick={() => setDrawingEnabled(!drawingEnabled)}
             className="relative w-10 h-5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#8B2E20]/30"
@@ -127,6 +168,65 @@ export default function DrawingToolbar() {
 
       {expanded && (
         <div className={`px-4 pb-4 pt-2 space-y-4 transition-opacity duration-200 ${drawingEnabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+          {drawingEnabled && (
+            <div className="sm:hidden">
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Target size={14} className="text-stone-500" />
+                  <span className="text-[11px] font-medium text-stone-600">完成度</span>
+                </div>
+                <span
+                  className={`text-[12px] font-bold ${
+                    isAllComplete ? 'text-green-600' : 'text-stone-700'
+                  }`}
+                >
+                  {completedCount} / {totalCells} 格 ({completionPercentage}%)
+                </span>
+              </div>
+              <div className="w-full h-2.5 bg-stone-200 rounded-full overflow-hidden">
+                <div
+                  className={`h-full bg-gradient-to-r ${getProgressColor()} transition-all duration-500 ease-out rounded-full`}
+                  style={{ width: `${completionPercentage}%` }}
+                />
+              </div>
+              {isAllComplete && (
+                <div className="mt-2 flex items-center gap-1.5 px-2 py-1.5 bg-green-50 rounded-lg border border-green-200/50">
+                  <CheckCircle2 size={14} className="text-green-600 shrink-0" />
+                  <span className="text-[11px] text-green-700 font-medium">
+                    太棒了！所有格子都已完成描红 🎉
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {drawingEnabled && (
+            <div className="hidden sm:flex items-center gap-2 p-2.5 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200/50">
+              <CheckCircle2 size={16} className="text-green-600 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-[12px] font-semibold text-green-800">
+                    描红完成度
+                  </span>
+                  <span className="text-[12px] font-bold text-green-700">
+                    {completedCount} / {totalCells}
+                  </span>
+                </div>
+                <div className="w-full h-2 bg-white/70 rounded-full overflow-hidden border border-green-200/50">
+                  <div
+                    className={`h-full bg-gradient-to-r ${getProgressColor()} transition-all duration-500 ease-out rounded-full`}
+                    style={{ width: `${completionPercentage}%` }}
+                  />
+                </div>
+              </div>
+              {isAllComplete && (
+                <span className="px-2 py-0.5 text-[10px] font-bold bg-green-500 text-white rounded-full shrink-0 animate-pulse">
+                  已完成
+                </span>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <label className="text-xs font-medium text-stone-600">笔色</label>
@@ -217,7 +317,7 @@ export default function DrawingToolbar() {
             <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg border border-amber-200/50">
               <Eraser size={14} className="text-amber-600 shrink-0" />
               <p className="text-[11px] text-amber-700 leading-relaxed">
-                已开启临摹模式，可直接在字帖上描红练习。关闭后可正常滚动预览。
+                已开启临摹模式，可直接在字帖上描红练习。完成超过 60% 即视为完成，会自动标绿。关闭后可正常滚动预览。
               </p>
             </div>
           )}

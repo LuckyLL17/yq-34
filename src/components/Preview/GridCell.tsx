@@ -1,5 +1,5 @@
 import type { GridType } from '@/types';
-import { useCopybookStore } from '@/store/useCopybookStore';
+import { useCopybookStore, COMPLETION_THRESHOLD } from '@/store/useCopybookStore';
 
 interface GridCellProps {
   char: string;
@@ -11,6 +11,7 @@ interface GridCellProps {
   showDashed: boolean;
   showTrace: boolean;
   traceOpacity: number;
+  completion?: number;
 }
 
 export default function GridCell({
@@ -23,9 +24,11 @@ export default function GridCell({
   showDashed,
   showTrace,
   traceOpacity,
+  completion = 0,
 }: GridCellProps) {
   const openStrokeAnimation = useCopybookStore((s) => s.openStrokeAnimation);
   const textType = useCopybookStore((s) => s.textType);
+  const drawingEnabled = useCopybookStore((s) => s.drawingEnabled);
 
   const s = cellSize;
   const fontSize = Math.floor(s * 0.78);
@@ -37,6 +40,8 @@ export default function GridCell({
   const isEmpty = char === ' ' || char === '' || char === '\u00A0';
   const isChinese = textType === 'chinese';
   const isClickable = !isEmpty && isChinese && /[\u4e00-\u9fa5]/.test(char);
+  const isCompleted = drawingEnabled && !isEmpty && completion >= COMPLETION_THRESHOLD;
+  const isPartiallyComplete = drawingEnabled && !isEmpty && completion > 0 && completion < COMPLETION_THRESHOLD;
 
   const handleClick = () => {
     if (isClickable) {
@@ -191,7 +196,7 @@ export default function GridCell({
 
   return (
     <div
-      className={`relative inline-block shrink-0 transition-all duration-150 ${
+      className={`relative inline-block shrink-0 transition-all duration-200 ${
         isClickable ? 'cursor-pointer group' : ''
       }`}
       style={{
@@ -202,6 +207,36 @@ export default function GridCell({
       }}
       onClick={handleClick}
     >
+      {isCompleted && (
+        <div
+          className="absolute inset-0 pointer-events-none transition-all duration-300"
+          style={{
+            backgroundColor: 'rgba(34, 197, 94, 0.18)',
+            boxShadow: 'inset 0 0 0 2px rgba(34, 197, 94, 0.5)',
+            animation: 'completePulse 0.6s ease-out',
+          }}
+        />
+      )}
+
+      {isPartiallyComplete && (
+        <div
+          className="absolute inset-0 pointer-events-none transition-opacity duration-200"
+          style={{
+            backgroundColor: `rgba(34, 197, 94, ${completion * 0.12})`,
+            boxShadow: `inset 0 0 0 2px rgba(34, 197, 94, ${completion * 0.4})`,
+          }}
+        />
+      )}
+
+      {isCompleted && (
+        <div
+          className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-gradient-to-br from-green-400 to-green-600 text-white flex items-center justify-center pointer-events-none shadow-md z-10"
+          style={{ fontSize: 10 }}
+        >
+          ✓
+        </div>
+      )}
+
       {renderGrid()}
 
       {isClickable && (
@@ -217,7 +252,7 @@ export default function GridCell({
       {isClickable && (
         <div
           className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-gradient-to-br from-[#8B2E20] to-[#5d1e15] text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none shadow-md"
-          style={{ fontSize: 9 }}
+          style={{ fontSize: 9, zIndex: isCompleted ? 20 : 5 }}
         >
           ✎
         </div>

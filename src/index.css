@@ -113,6 +113,21 @@ input[type="color"]::-webkit-color-swatch {
   }
 }
 
+@keyframes completePulse {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .animate-in {
   animation: fadeIn 0.15s ease-out;
 }

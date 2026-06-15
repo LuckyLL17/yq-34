@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Settings, Eye, PenTool, ChevronDown, Calendar as CalendarIcon, Sparkles, Gauge, Type } from 'lucide-react';
+import { Settings, Eye, PenTool, ChevronDown, Calendar as CalendarIcon, Sparkles, Gauge, Type, ScrollText } from 'lucide-react';
 import CopybookPreview from '@/components/Preview/CopybookPreview';
 import DrawingToolbar from '@/components/Preview/DrawingToolbar';
 import TextTypeSelector from '@/components/ConfigPanel/TextTypeSelector';
@@ -9,6 +9,7 @@ import GridConfig from '@/components/ConfigPanel/GridConfig';
 import ColorConfig from '@/components/ConfigPanel/ColorConfig';
 import DifficultySelector from '@/components/ConfigPanel/DifficultySelector';
 import HeaderConfig from '@/components/ConfigPanel/HeaderConfig';
+import PaperTextureSelector from '@/components/ConfigPanel/PaperTextureSelector';
 import StrokeAnimationModal from '@/components/StrokeAnimationModal';
 import FontCompareModal from '@/components/FontCompareModal';
 import ExportButton from '@/components/ExportButton';
@@ -150,6 +151,10 @@ export default function Home() {
 
               <ConfigSection title="颜色设置" icon={<Eye size={16} strokeWidth={2} />} defaultOpen={false}>
                 <ColorConfig />
+              </ConfigSection>
+
+              <ConfigSection title="纸张质感" icon={<ScrollText size={16} strokeWidth={2} />} defaultOpen={false}>
+                <PaperTextureSelector />
               </ConfigSection>
 
               <div className="sm:hidden">
