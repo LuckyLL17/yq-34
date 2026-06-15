@@ -1,4 +1,5 @@
 import { useRef, useState, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Settings, Eye, PenTool, ChevronDown, Calendar as CalendarIcon, Sparkles, Gauge, Type, ScrollText, BookMarked, Droplet, Clock, Hash, CheckCircle, Percent, Wand2 } from 'lucide-react';
 import WatermarkConfig from '@/components/ConfigPanel/WatermarkConfig';
 import { useCopybookStore } from '@/store/useCopybookStore';
@@ -64,13 +65,13 @@ export default function Home() {
   }>({});
 
   const { text, difficultyLevel, getTotalValidCells, getCompletionPercentage, getCompletedCellsCount } = useCopybookStore(
-    (s) => ({
+    useShallow((s) => ({
       text: s.text,
       difficultyLevel: s.difficultyLevel,
       getTotalValidCells: s.getTotalValidCells,
       getCompletionPercentage: s.getCompletionPercentage,
       getCompletedCellsCount: s.getCompletedCellsCount,
-    })
+    }))
   );
 
   const stats = useMemo(() => {
