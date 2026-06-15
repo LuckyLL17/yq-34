@@ -107,3 +107,25 @@ export interface StrokeAnimationState {
   char: string;
 }
 
+export interface CopybookTemplate {
+  id: string;
+  name: string;
+  config: CopybookConfig;
+  createdAt: number;
+  updatedAt: number;
+  previewText?: string;
+}
+
+export interface TemplateStore {
+  templates: CopybookTemplate[];
+  selectedTemplateIds: string[];
+  saveTemplate: (name: string, config: CopybookConfig) => CopybookTemplate;
+  updateTemplate: (id: string, updates: Partial<CopybookTemplate>) => void;
+  deleteTemplate: (id: string) => void;
+  deleteTemplates: (ids: string[]) => void;
+  toggleSelectTemplate: (id: string) => void;
+  selectAllTemplates: () => void;
+  clearSelection: () => void;
+  loadTemplateToConfig: (id: string, applyConfig: (config: CopybookConfig) => void) => void;
+}
+

@@ -9,6 +9,7 @@ import { paperTextures } from '@/components/ConfigPanel/PaperTextureSelector';
 
 interface CopybookPreviewProps {
   className?: string;
+  overrideConfig?: Partial<CopybookConfig>;
 }
 
 const A4_RATIO = 297 / 210;
@@ -80,8 +81,11 @@ const selector = (s: {
 const LINE_NUMBER_WIDTH = 28;
 
 const CopybookPreview = forwardRef<HTMLDivElement, CopybookPreviewProps>(
-  ({ className }, ref) => {
-    const config = useCopybookStore(useShallow(selector));
+  ({ className, overrideConfig }, ref) => {
+    const storeConfig = useCopybookStore(useShallow(selector));
+    const config = useMemo(() => {
+      return { ...storeConfig, ...overrideConfig };
+    }, [storeConfig, overrideConfig]);
     const font = getFontById(config.fontId);
 
     const allChars = useMemo(() => {

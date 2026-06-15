@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Settings, Eye, PenTool, ChevronDown, Calendar as CalendarIcon, Sparkles, Gauge, Type, ScrollText } from 'lucide-react';
+import { Settings, Eye, PenTool, ChevronDown, Calendar as CalendarIcon, Sparkles, Gauge, Type, ScrollText, BookMarked } from 'lucide-react';
 import CopybookPreview from '@/components/Preview/CopybookPreview';
 import DrawingToolbar from '@/components/Preview/DrawingToolbar';
 import TextTypeSelector from '@/components/ConfigPanel/TextTypeSelector';
@@ -15,6 +15,7 @@ import FontCompareModal from '@/components/FontCompareModal';
 import ExportButton from '@/components/ExportButton';
 import CalendarView from '@/components/CalendarView';
 import PosterGenerator from '@/components/PosterGenerator';
+import TemplateManager from '@/components/TemplateManager';
 import type { CheckinRecord } from '@/types';
 
 interface SectionProps {
@@ -125,6 +126,8 @@ export default function Home() {
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
           <aside className="w-full lg:w-[380px] lg:shrink-0 space-y-4 order-2 lg:order-1">
             <div className="sticky top-6 space-y-4 max-h-[calc(100vh-8rem)] overflow-y-auto pr-1 custom-scrollbar">
+              <TemplateManager />
+
               <ConfigSection title="字帖类型" icon={<Settings size={16} strokeWidth={2} />}>
                 <TextTypeSelector />
               </ConfigSection>
