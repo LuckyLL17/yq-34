@@ -115,3 +115,10 @@ export function getFontById(id: string): FontOption {
 export function getFontsByType(textType: string): FontOption[] {
   return FONT_OPTIONS.filter((f) => f.applicableTypes.includes(textType as never));
 }
+
+export function getSortedFontsByType(textType: string, favoriteIds: string[]): { favorites: FontOption[]; others: FontOption[] } {
+  const fonts = getFontsByType(textType);
+  const favorites = fonts.filter((f) => favoriteIds.includes(f.id));
+  const others = fonts.filter((f) => !favoriteIds.includes(f.id));
+  return { favorites, others };
+}

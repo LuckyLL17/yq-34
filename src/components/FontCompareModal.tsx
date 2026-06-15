@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
-import { X, Check, Type, ZoomIn, ZoomOut } from 'lucide-react';
+import { X, Check, Type, ZoomIn, ZoomOut, Star } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useCopybookStore } from '@/store/useCopybookStore';
-import { getFontsByType } from '@/utils/fonts';
+import { useFavoriteFontStore } from '@/store/useFavoriteFontStore';
+import { getSortedFontsByType } from '@/utils/fonts';
 import type { FontOption } from '@/types';
 
 interface FontCompareModalProps {
@@ -19,11 +20,22 @@ export default function FontCompareModal({ open, onClose }: FontCompareModalProp
     }))
   );
 
+  const { favoriteFontIds, toggleFavoriteFont } = useFavoriteFontStore(
+    useShallow((s) => ({
+      favoriteFontIds: s.favoriteFontIds,
+      toggleFavoriteFont: s.toggleFavoriteFont,
+    }))
+  );
+
   const [inputText, setInputText] = useState('永');
   const [fontSize, setFontSize] = useState(72);
   const [selectedFontId, setSelectedFontId] = useState(fontId);
 
-  const availableFonts = useMemo(() => getFontsByType(textType), [textType]);
+  const { favorites: favFonts, others: otherFonts } = useMemo(
+    () => getSortedFontsByType(textType, favoriteFontIds),
+    [textType, favoriteFontIds]
+  );
+  const totalCount = favFonts.length + otherFonts.length;
 
   const displayText = inputText.slice(0, 1) || '永';
 
@@ -35,6 +47,90 @@ export default function FontCompareModal({ open, onClose }: FontCompareModalProp
 
   const handleFontSizeChange = (delta: number) => {
     setFontSize((prev) => Math.max(32, Math.min(128, prev + delta)));
+  };
+
+  const handleToggleFavorite = (e: React.MouseEvent, fontId: string) => {
+    e.stopPropagation();
+    toggleFavoriteFont(fontId);
+  };
+
+  const renderFontCard = (font: FontOption, isFav: boolean) => {
+    const isSelected = font.id === selectedFontId;
+    const isCurrent = font.id === fontId;
+
+    return (
+      <button
+        key={font.id}
+        onClick={() => handleSelectFont(font)}
+        className={`group relative p-5 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
+          isSelected
+            ? 'border-[#8B2E20] bg-[#8B2E20]/5 shadow-lg shadow-[#8B2E20]/10'
+            : 'border-stone-200 bg-white hover:border-[#8B2E20]/50 hover:bg-stone-50'
+        }`}
+      >
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-1.5">
+            <span
+              onClick={(e) => handleToggleFavorite(e, font.id)}
+              className={`cursor-pointer transition-colors ${
+                isFav ? 'text-amber-400 hover:text-amber-500' : 'text-stone-300 hover:text-amber-400'
+              }`}
+            >
+              <Star size={14} fill={isFav ? 'currentColor' : 'none'} />
+            </span>
+            <p
+              className={`text-sm font-semibold ${
+                isSelected ? 'text-[#8B2E20]' : 'text-stone-700'
+              }`}
+            >
+              {font.name}
+            </p>
+          </div>
+          <div className="flex items-center gap-1">
+            {isCurrent && !isSelected && (
+              <span className="text-xs text-stone-400">当前使用</span>
+            )}
+            {isSelected && (
+              <div className="w-6 h-6 rounded-full bg-[#8B2E20] flex items-center justify-center shadow-md">
+                <Check size={14} className="text-white" />
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div
+          className="flex items-center justify-center py-6 px-2 rounded-lg bg-gradient-to-br from-stone-50 to-white border border-stone-100"
+          style={{ minHeight: `${fontSize + 40}px` }}
+        >
+          <span
+            className="text-stone-800 leading-none transition-transform group-hover:scale-110"
+            style={{
+              fontFamily: font.family,
+              fontSize: `${fontSize}px`,
+            }}
+          >
+            {displayText}
+          </span>
+        </div>
+
+        {isSelected && (
+          <div className="mt-3 text-center">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#8B2E20] text-white text-xs font-medium rounded-full">
+              <Check size={12} />
+              已选择
+            </span>
+          </div>
+        )}
+
+        {!isSelected && (
+          <div className="mt-3 opacity-0 group-hover:opacity-100 transition-opacity text-center">
+            <span className="text-xs text-[#8B2E20] font-medium">
+              点击选择此字体
+            </span>
+          </div>
+        )}
+      </button>
+    );
   };
 
   if (!open) return null;
@@ -64,7 +160,7 @@ export default function FontCompareModal({ open, onClose }: FontCompareModalProp
                 字体对比选择
               </h3>
               <p className="text-xs text-stone-500">
-                共 {availableFonts.length} 款字体 · 点击选择喜欢的字体
+                共 {totalCount} 款字体 · {favFonts.length} 个常用 · 点击选择喜欢的字体
               </p>
             </div>
           </div>
@@ -145,84 +241,38 @@ export default function FontCompareModal({ open, onClose }: FontCompareModalProp
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
-          <div
-            className="grid gap-4"
-            style={{
-              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-            }}
-          >
-            {availableFonts.map((font) => {
-              const isSelected = font.id === selectedFontId;
-              const isCurrent = font.id === fontId;
-
-              return (
-                <button
-                  key={font.id}
-                  onClick={() => handleSelectFont(font)}
-                  className={`group relative p-5 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
-                    isSelected
-                      ? 'border-[#8B2E20] bg-[#8B2E20]/5 shadow-lg shadow-[#8B2E20]/10'
-                      : 'border-stone-200 bg-white hover:border-[#8B2E20]/50 hover:bg-stone-50'
-                  }`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <p
-                        className={`text-sm font-semibold ${
-                          isSelected ? 'text-[#8B2E20]' : 'text-stone-700'
-                        }`}
-                      >
-                        {font.name}
-                      </p>
-                      {isCurrent && !isSelected && (
-                        <span className="text-xs text-stone-400">当前使用</span>
-                      )}
-                    </div>
-                    {isSelected && (
-                      <div className="w-6 h-6 rounded-full bg-[#8B2E20] flex items-center justify-center shadow-md">
-                        <Check size={14} className="text-white" />
-                      </div>
-                    )}
-                  </div>
-
-                  <div
-                    className="flex items-center justify-center py-6 px-2 rounded-lg bg-gradient-to-br from-stone-50 to-white border border-stone-100"
-                    style={{
-                      minHeight: `${fontSize + 40}px`,
-                    }}
-                  >
-                    <span
-                      className="text-stone-800 leading-none transition-transform group-hover:scale-110"
-                      style={{
-                        fontFamily: font.family,
-                        fontSize: `${fontSize}px`,
-                      }}
-                    >
-                      {displayText}
-                    </span>
-                  </div>
-
-                  {isSelected && (
-                    <div className="mt-3 text-center">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#8B2E20] text-white text-xs font-medium rounded-full">
-                        <Check size={12} />
-                        已选择
-                      </span>
-                    </div>
-                  )}
-
-                  {!isSelected && (
-                    <div className="mt-3 opacity-0 group-hover:opacity-100 transition-opacity text-center">
-                      <span className="text-xs text-[#8B2E20] font-medium">
-                        点击选择此字体
-                      </span>
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+          {favFonts.length > 0 && (
+            <div className="mb-6">
+              <div className="flex items-center gap-1.5 mb-3">
+                <Star size={14} fill="currentColor" className="text-amber-400" />
+                <span className="text-sm font-medium text-amber-600">常用字体</span>
+                <span className="text-xs text-amber-500">({favFonts.length})</span>
+              </div>
+              <div
+                className="grid gap-4"
+                style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}
+              >
+                {favFonts.map((font) => renderFontCard(font, true))}
+              </div>
+            </div>
+          )}
+          {otherFonts.length > 0 && (
+            <div>
+              {favFonts.length > 0 && (
+                <div className="flex items-center gap-1.5 mb-3">
+                  <span className="text-sm font-medium text-stone-400">全部字体</span>
+                  <span className="text-xs text-stone-400">({otherFonts.length})</span>
+                </div>
+              )}
+              <div
+                className="grid gap-4"
+                style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}
+              >
+                {otherFonts.map((font) => renderFontCard(font, false))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="px-6 py-3 border-t border-stone-100 bg-stone-50/50 text-center shrink-0">
