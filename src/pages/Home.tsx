@@ -1,11 +1,12 @@
 import { useRef, useState, useMemo } from 'react';
-import { Settings, Eye, PenTool, ChevronDown, Calendar as CalendarIcon, Sparkles, Gauge, Type, ScrollText, BookMarked, Droplet, Clock, Hash, CheckCircle, Percent } from 'lucide-react';
+import { Settings, Eye, PenTool, ChevronDown, Calendar as CalendarIcon, Sparkles, Gauge, Type, ScrollText, BookMarked, Droplet, Clock, Hash, CheckCircle, Percent, Wand2 } from 'lucide-react';
 import WatermarkConfig from '@/components/ConfigPanel/WatermarkConfig';
 import { useCopybookStore } from '@/store/useCopybookStore';
 import CopybookPreview from '@/components/Preview/CopybookPreview';
 import DrawingToolbar from '@/components/Preview/DrawingToolbar';
 import TextTypeSelector from '@/components/ConfigPanel/TextTypeSelector';
 import TextInput from '@/components/ConfigPanel/TextInput';
+import TextProcessor from '@/components/ConfigPanel/TextProcessor';
 import FontSelector from '@/components/ConfigPanel/FontSelector';
 import GridConfig from '@/components/ConfigPanel/GridConfig';
 import ColorConfig from '@/components/ConfigPanel/ColorConfig';
@@ -183,6 +184,10 @@ export default function Home() {
 
               <ConfigSection title="文字内容" icon={<Eye size={16} strokeWidth={2} />}>
                 <TextInput />
+              </ConfigSection>
+
+              <ConfigSection title="文字处理" icon={<Wand2 size={16} strokeWidth={2} />} defaultOpen={false}>
+                <TextProcessor />
               </ConfigSection>
 
               <ConfigSection title="书法字体" icon={<PenTool size={16} strokeWidth={2} />}>

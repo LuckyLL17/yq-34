@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import type { CopybookConfig, TextType, GridType, DrawingPath, DrawingConfig, PageDrawingPaths, DifficultyLevel, StrokeAnimationState, HeaderFieldConfig, HeaderPosition, PaperTexture, CompletedCells, WatermarkConfig, WatermarkPosition } from '@/types';
+import type { CopybookConfig, TextType, GridType, DrawingPath, DrawingConfig, PageDrawingPaths, DifficultyLevel, StrokeAnimationState, HeaderFieldConfig, HeaderPosition, PaperTexture, CompletedCells, WatermarkConfig, WatermarkPosition, SortMode } from '@/types';
 import { DEFAULT_TEXTS } from '@/utils/presetTexts';
+import { filterByStrokeRange, applySortMode } from '@/utils/strokeCount';
 
 interface CopybookState extends CopybookConfig, DrawingConfig {
   pagePaths: PageDrawingPaths;
@@ -8,6 +9,11 @@ interface CopybookState extends CopybookConfig, DrawingConfig {
   difficultyLevel: DifficultyLevel;
   strokeAnimation: StrokeAnimationState;
   completedCells: CompletedCells;
+  originalText: string;
+  minStroke: number;
+  maxStroke: number;
+  sortMode: SortMode;
+  interleaveInterval: number;
   setTextType: (type: TextType) => void;
   setText: (text: string) => void;
   setFontId: (fontId: string) => void;
@@ -52,6 +58,13 @@ interface CopybookState extends CopybookConfig, DrawingConfig {
   getCompletionPercentage: () => number;
   getTotalValidCells: () => number;
   getCompletedCellsCount: () => number;
+  setMinStroke: (min: number) => void;
+  setMaxStroke: (max: number) => void;
+  setSortMode: (mode: SortMode) => void;
+  setInterleaveInterval: (interval: number) => void;
+  applyStrokeFilter: () => void;
+  applyTextSort: () => void;
+  resetTextProcessing: () => void;
 }
 
 const DEFAULT_CONFIG: CopybookConfig & DrawingConfig = {
@@ -122,6 +135,11 @@ const COMPLETION_THRESHOLD = 0.6;
 
 export const useCopybookStore = create<CopybookState>((set, get) => ({
   ...DEFAULT_CONFIG,
+  originalText: DEFAULT_TEXTS.chinese,
+  minStroke: 1,
+  maxStroke: 30,
+  sortMode: 'original',
+  interleaveInterval: 2,
   pagePaths: {},
   pageRedoStack: {},
   difficultyLevel: 'intermediate',
@@ -138,14 +156,18 @@ export const useCopybookStore = create<CopybookState>((set, get) => ({
       return {
         textType: type,
         text: DEFAULT_TEXTS[type],
+        originalText: DEFAULT_TEXTS[type],
         fontId,
         colsPerRow: type === 'english' ? 14 : type === 'number' ? 12 : 10,
         rows: 14,
         completedCells: {},
+        minStroke: 1,
+        maxStroke: 30,
+        sortMode: 'original',
       };
     }),
 
-  setText: (text) => set({ text, completedCells: {} }),
+  setText: (text) => set({ text, originalText: text, completedCells: {} }),
   setFontId: (fontId) => set({ fontId }),
   setGridType: (gridType) => set({ gridType }),
   setCellSize: (cellSize) => set({ cellSize: Math.max(32, Math.min(120, cellSize)) }),
@@ -321,6 +343,37 @@ export const useCopybookStore = create<CopybookState>((set, get) => ({
     if (total === 0) return 0;
     const completed = get().getCompletedCellsCount();
     return Math.round((completed / total) * 100);
+  },
+
+  setMinStroke: (min) => set({ minStroke: Math.max(1, Math.min(min, get().maxStroke)) }),
+  setMaxStroke: (max) => set({ maxStroke: Math.max(get().minStroke, Math.min(max, 30)) }),
+  setSortMode: (mode) => set({ sortMode: mode }),
+  setInterleaveInterval: (interval) => set({ interleaveInterval: Math.max(2, Math.min(interval, 10)) }),
+
+  applyStrokeFilter: () => {
+    const { originalText, minStroke, maxStroke, sortMode, interleaveInterval } = get();
+    const { filtered } = filterByStrokeRange(originalText, minStroke, maxStroke);
+    const sorted = applySortMode(filtered, sortMode, interleaveInterval);
+    set({ text: sorted, completedCells: {} });
+  },
+
+  applyTextSort: () => {
+    const { originalText, minStroke, maxStroke, sortMode, interleaveInterval } = get();
+    const { filtered } = filterByStrokeRange(originalText, minStroke, maxStroke);
+    const sorted = applySortMode(filtered, sortMode, interleaveInterval);
+    set({ text: sorted, completedCells: {} });
+  },
+
+  resetTextProcessing: () => {
+    const { originalText } = get();
+    set({
+      text: originalText,
+      minStroke: 1,
+      maxStroke: 30,
+      sortMode: 'original',
+      interleaveInterval: 2,
+      completedCells: {},
+    });
   },
 }));
 

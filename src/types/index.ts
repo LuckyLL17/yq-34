@@ -1,5 +1,7 @@
 export type TextType = 'number' | 'chinese' | 'english';
 
+export type SortMode = 'original' | 'reverse' | 'shuffle' | 'interleave';
+
 export type GridType = 'tian' | 'mi' | 'hui' | 'none';
 
 export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced';
