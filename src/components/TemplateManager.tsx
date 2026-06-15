@@ -60,6 +60,7 @@ function getTemplateConfigSnapshot(): CopybookConfig {
     headerPosition: state.headerPosition,
     showLineNumbers: state.showLineNumbers,
     paperTexture: state.paperTexture,
+    watermark: state.watermark,
   };
 }
 

@@ -1,5 +1,7 @@
-import { useRef, useState } from 'react';
-import { Settings, Eye, PenTool, ChevronDown, Calendar as CalendarIcon, Sparkles, Gauge, Type, ScrollText, BookMarked } from 'lucide-react';
+import { useRef, useState, useMemo } from 'react';
+import { Settings, Eye, PenTool, ChevronDown, Calendar as CalendarIcon, Sparkles, Gauge, Type, ScrollText, BookMarked, Droplet, Clock, Hash, CheckCircle, Percent } from 'lucide-react';
+import WatermarkConfig from '@/components/ConfigPanel/WatermarkConfig';
+import { useCopybookStore } from '@/store/useCopybookStore';
 import CopybookPreview from '@/components/Preview/CopybookPreview';
 import DrawingToolbar from '@/components/Preview/DrawingToolbar';
 import TextTypeSelector from '@/components/ConfigPanel/TextTypeSelector';
@@ -59,6 +61,53 @@ export default function Home() {
     charCount?: number;
     record?: CheckinRecord;
   }>({});
+
+  const { text, difficultyLevel, getTotalValidCells, getCompletionPercentage, getCompletedCellsCount } = useCopybookStore(
+    (s) => ({
+      text: s.text,
+      difficultyLevel: s.difficultyLevel,
+      getTotalValidCells: s.getTotalValidCells,
+      getCompletionPercentage: s.getCompletionPercentage,
+      getCompletedCellsCount: s.getCompletedCellsCount,
+    })
+  );
+
+  const stats = useMemo(() => {
+    const totalChars = Array.from(text).filter((ch) => ch !== '\n' && ch !== '\r' && ch !== '\t' && ch !== ' ').length;
+    const validCells = getTotalValidCells();
+    const completedCells = getCompletedCellsCount();
+    const completionRate = getCompletionPercentage();
+
+    const secondsPerChar = {
+      beginner: 15,
+      intermediate: 10,
+      advanced: 6,
+    };
+    const estimatedSeconds = validCells * secondsPerChar[difficultyLevel];
+    const hours = Math.floor(estimatedSeconds / 3600);
+    const minutes = Math.floor((estimatedSeconds % 3600) / 60);
+    const seconds = estimatedSeconds % 60;
+
+    let estimatedTime = '';
+    if (hours > 0) {
+      estimatedTime += `${hours}小时`;
+    }
+    if (minutes > 0) {
+      estimatedTime += `${minutes}分钟`;
+    }
+    if (hours === 0 && minutes === 0) {
+      estimatedTime += `${seconds}秒`;
+    }
+
+    return {
+      totalChars,
+      validCells,
+      completedCells,
+      completionRate,
+      estimatedTime,
+      difficultyLabel: difficultyLevel === 'beginner' ? '入门' : difficultyLevel === 'intermediate' ? '进阶' : '挑战',
+    };
+  }, [text, difficultyLevel, getTotalValidCells, getCompletionPercentage, getCompletedCellsCount]);
 
   const handleCheckinSuccess = (data: { thumbnail: string; charCount: number }) => {
     setPosterData({ thumbnail: data.thumbnail, charCount: data.charCount });
@@ -160,6 +209,10 @@ export default function Home() {
                 <PaperTextureSelector />
               </ConfigSection>
 
+              <ConfigSection title="水印设置" icon={<Droplet size={16} strokeWidth={2} />} defaultOpen={false}>
+                <WatermarkConfig />
+              </ConfigSection>
+
               <div className="sm:hidden">
                 <div className="sticky bottom-4">
                   <ExportButton
@@ -175,6 +228,60 @@ export default function Home() {
             <div className="sticky top-4 z-20 mb-4">
               <DrawingToolbar />
             </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-stone-200/50 p-3 shadow-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-7 h-7 rounded-lg bg-[#8B2E20]/10 flex items-center justify-center">
+                    <Hash size={14} className="text-[#8B2E20]" />
+                  </div>
+                  <span className="text-xs text-stone-500">总字数</span>
+                </div>
+                <div className="text-xl font-bold text-[#3D2C1F]">
+                  {stats.totalChars}
+                </div>
+              </div>
+
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-stone-200/50 p-3 shadow-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-7 h-7 rounded-lg bg-green-500/10 flex items-center justify-center">
+                    <CheckCircle size={14} className="text-green-600" />
+                  </div>
+                  <span className="text-xs text-stone-500">已完成</span>
+                </div>
+                <div className="text-xl font-bold text-[#3D2C1F]">
+                  {stats.completedCells} <span className="text-sm font-normal text-stone-400">/ {stats.validCells}</span>
+                </div>
+              </div>
+
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-stone-200/50 p-3 shadow-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                    <Percent size={14} className="text-blue-600" />
+                  </div>
+                  <span className="text-xs text-stone-500">完成率</span>
+                </div>
+                <div className="text-xl font-bold text-[#3D2C1F]">
+                  {stats.completionRate}%
+                </div>
+              </div>
+
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-stone-200/50 p-3 shadow-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                    <Clock size={14} className="text-amber-600" />
+                  </div>
+                  <span className="text-xs text-stone-500">预估时长</span>
+                </div>
+                <div className="text-xl font-bold text-[#3D2C1F]">
+                  {stats.estimatedTime}
+                </div>
+                <div className="text-xs text-stone-400 mt-0.5">
+                  {stats.difficultyLabel}模式 · 约 {stats.validCells} 格
+                </div>
+              </div>
+            </div>
+
             <div className="overflow-auto custom-scrollbar pb-8">
               <CopybookPreview ref={previewRef} />
             </div>

@@ -1,4 +1,4 @@
-import type { GridType } from '@/types';
+import type { GridType, WatermarkConfig } from '@/types';
 import { useCopybookStore, COMPLETION_THRESHOLD } from '@/store/useCopybookStore';
 
 interface GridCellProps {
@@ -12,6 +12,7 @@ interface GridCellProps {
   showTrace: boolean;
   traceOpacity: number;
   completion?: number;
+  watermark?: WatermarkConfig;
 }
 
 export default function GridCell({
@@ -25,6 +26,7 @@ export default function GridCell({
   showTrace,
   traceOpacity,
   completion = 0,
+  watermark,
 }: GridCellProps) {
   const openStrokeAnimation = useCopybookStore((s) => s.openStrokeAnimation);
   const textType = useCopybookStore((s) => s.textType);
@@ -279,6 +281,22 @@ export default function GridCell({
       >
         {isEmpty ? '' : char}
       </span>
+
+      {watermark && watermark.enabled && watermark.position === 'cell-corner' && watermark.text && (
+        <span
+          className="absolute right-0.5 bottom-0 pointer-events-none select-none"
+          style={{
+            fontSize: watermark.fontSize,
+            color: watermark.color,
+            opacity: watermark.opacity,
+            fontFamily: '"Noto Serif SC", "STSong", serif',
+            lineHeight: 1,
+            zIndex: 2,
+          }}
+        >
+          {watermark.text}
+        </span>
+      )}
     </div>
   );
 }

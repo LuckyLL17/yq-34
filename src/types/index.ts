@@ -15,9 +15,20 @@ export interface FontOption {
 
 export type HeaderPosition = 'left' | 'center' | 'right';
 
+export type WatermarkPosition = 'cell-corner' | 'page-center';
+
 export interface HeaderFieldConfig {
   label: string;
   visible: boolean;
+}
+
+export interface WatermarkConfig {
+  enabled: boolean;
+  text: string;
+  position: WatermarkPosition;
+  fontSize: number;
+  opacity: number;
+  color: string;
 }
 
 export interface CopybookConfig {
@@ -41,6 +52,7 @@ export interface CopybookConfig {
   headerPosition: HeaderPosition;
   showLineNumbers: boolean;
   paperTexture: PaperTexture;
+  watermark: WatermarkConfig;
 }
 
 export interface CompletedCells {

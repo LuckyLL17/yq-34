@@ -2,7 +2,7 @@ import { forwardRef, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useCopybookStore } from '@/store/useCopybookStore';
 import { getFontById } from '@/utils/fonts';
-import type { CopybookConfig, HeaderPosition, HeaderFieldConfig, PaperTexture } from '@/types';
+import type { CopybookConfig, HeaderPosition, HeaderFieldConfig, PaperTexture, WatermarkConfig } from '@/types';
 import GridCell from './GridCell';
 import PageDrawingCanvas from './PageDrawingCanvas';
 import { paperTextures } from '@/components/ConfigPanel/PaperTextureSelector';
@@ -43,6 +43,7 @@ const selector = (s: {
   headerPosition: CopybookConfig['headerPosition'];
   showLineNumbers: CopybookConfig['showLineNumbers'];
   paperTexture: CopybookConfig['paperTexture'];
+  watermark: CopybookConfig['watermark'];
   completedCells: any;
 }): CopybookConfig & {
   title: string;
@@ -53,6 +54,7 @@ const selector = (s: {
   headerPosition: HeaderPosition;
   showLineNumbers: boolean;
   paperTexture: PaperTexture;
+  watermark: WatermarkConfig;
   completedCells: any;
 } => ({
   textType: s.textType,
@@ -75,6 +77,7 @@ const selector = (s: {
   headerPosition: s.headerPosition,
   showLineNumbers: s.showLineNumbers,
   paperTexture: s.paperTexture,
+  watermark: s.watermark,
   completedCells: s.completedCells,
 });
 
@@ -192,6 +195,27 @@ const CopybookPreview = forwardRef<HTMLDivElement, CopybookPreviewProps>(
                   bottom: paddingY,
                 }}
               >
+                {config.watermark.enabled && config.watermark.position === 'page-center' && config.watermark.text && (
+                  <div
+                    className="absolute inset-0 flex items-center justify-center pointer-events-none select-none"
+                    style={{ zIndex: 1 }}
+                  >
+                    <span
+                      style={{
+                        fontSize: config.watermark.fontSize,
+                        color: config.watermark.color,
+                        opacity: config.watermark.opacity,
+                        fontFamily: '"Noto Serif SC", "STSong", serif',
+                        transform: 'rotate(-30deg)',
+                        letterSpacing: '0.1em',
+                        fontWeight: 500,
+                      }}
+                    >
+                      {config.watermark.text}
+                    </span>
+                  </div>
+                )}
+
                 <div
                   className={`flex flex-col shrink-0 ${headerAlignClass}`}
                   style={{ height: headerHeight }}
@@ -272,6 +296,7 @@ const CopybookPreview = forwardRef<HTMLDivElement, CopybookPreviewProps>(
                               showTrace={config.showTrace}
                               traceOpacity={config.traceOpacity}
                               completion={completion}
+                              watermark={config.watermark}
                             />
                           );
                         })}

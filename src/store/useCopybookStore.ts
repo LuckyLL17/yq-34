@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CopybookConfig, TextType, GridType, DrawingPath, DrawingConfig, PageDrawingPaths, DifficultyLevel, StrokeAnimationState, HeaderFieldConfig, HeaderPosition, PaperTexture, CompletedCells } from '@/types';
+import type { CopybookConfig, TextType, GridType, DrawingPath, DrawingConfig, PageDrawingPaths, DifficultyLevel, StrokeAnimationState, HeaderFieldConfig, HeaderPosition, PaperTexture, CompletedCells, WatermarkConfig, WatermarkPosition } from '@/types';
 import { DEFAULT_TEXTS } from '@/utils/presetTexts';
 
 interface CopybookState extends CopybookConfig, DrawingConfig {
@@ -28,6 +28,12 @@ interface CopybookState extends CopybookConfig, DrawingConfig {
   setHeaderPosition: (position: HeaderPosition) => void;
   setShowLineNumbers: (show: boolean) => void;
   setPaperTexture: (texture: PaperTexture) => void;
+  setWatermarkEnabled: (enabled: boolean) => void;
+  setWatermarkText: (text: string) => void;
+  setWatermarkPosition: (position: WatermarkPosition) => void;
+  setWatermarkFontSize: (size: number) => void;
+  setWatermarkOpacity: (opacity: number) => void;
+  setWatermarkColor: (color: string) => void;
   updateConfig: (partial: Partial<CopybookConfig>) => void;
   resetConfig: () => void;
   setPenColor: (color: string) => void;
@@ -69,6 +75,14 @@ const DEFAULT_CONFIG: CopybookConfig & DrawingConfig = {
   headerPosition: 'center',
   showLineNumbers: false,
   paperTexture: 'white',
+  watermark: {
+    enabled: false,
+    text: '练字',
+    position: 'cell-corner',
+    fontSize: 12,
+    opacity: 0.15,
+    color: '#8B2E20',
+  },
   penColor: '#1a1a1a',
   penWidth: 3,
   drawingEnabled: false,
@@ -150,6 +164,30 @@ export const useCopybookStore = create<CopybookState>((set, get) => ({
   setHeaderPosition: (headerPosition) => set({ headerPosition }),
   setShowLineNumbers: (showLineNumbers) => set({ showLineNumbers }),
   setPaperTexture: (paperTexture) => set({ paperTexture }),
+  setWatermarkEnabled: (enabled) =>
+    set((state) => ({
+      watermark: { ...state.watermark, enabled },
+    })),
+  setWatermarkText: (text) =>
+    set((state) => ({
+      watermark: { ...state.watermark, text },
+    })),
+  setWatermarkPosition: (position) =>
+    set((state) => ({
+      watermark: { ...state.watermark, position },
+    })),
+  setWatermarkFontSize: (fontSize) =>
+    set((state) => ({
+      watermark: { ...state.watermark, fontSize: Math.max(8, Math.min(48, fontSize)) },
+    })),
+  setWatermarkOpacity: (opacity) =>
+    set((state) => ({
+      watermark: { ...state.watermark, opacity: Math.max(0.05, Math.min(0.8, opacity)) },
+    })),
+  setWatermarkColor: (color) =>
+    set((state) => ({
+      watermark: { ...state.watermark, color },
+    })),
   updateConfig: (partial) => set(partial),
   resetConfig: () => set({ ...DEFAULT_CONFIG, pagePaths: {}, pageRedoStack: {}, completedCells: {} }),
 
