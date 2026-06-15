@@ -1,3 +1,5 @@
+import { PAGE_BREAK, LINE_BREAK, tokenizeText, isPageBreakToken, isLineBreakToken, extractContentChars } from './textParser';
+
 export const STROKE_COUNT_MAP: Record<string, number> = {
   '一': 1, '乙': 1, '丨': 1, '丿': 1, '丶': 1, '乛': 1,
   '二': 2, '十': 2, '丁': 2, '七': 2, '人': 2, '八': 2, '九': 2, '入': 2, '刀': 2, '力': 2,
@@ -153,37 +155,46 @@ export function filterByStrokeRange(
   minStroke: number,
   maxStroke: number
 ): { filtered: string; stats: { total: number; kept: number; removed: number } } {
-  const chars = Array.from(text);
-  const filteredChars: string[] = [];
+  const tokens = tokenizeText(text);
+  const filteredTokens: string[] = [];
+  let totalContent = 0;
 
-  for (const ch of chars) {
-    if (ch === '\n' || ch === '\r' || ch === '\t' || ch === ' ') {
+  for (const token of tokens) {
+    if (isPageBreakToken(token)) {
+      filteredTokens.push(PAGE_BREAK);
       continue;
     }
-    const stroke = getStrokeCount(ch);
+    if (isLineBreakToken(token)) {
+      filteredTokens.push(LINE_BREAK);
+      continue;
+    }
+    totalContent++;
+    const stroke = getStrokeCount(token);
     if (stroke !== null && stroke >= minStroke && stroke <= maxStroke) {
-      filteredChars.push(ch);
+      filteredTokens.push(token);
     } else if (stroke === null) {
-      filteredChars.push(ch);
+      filteredTokens.push(token);
     }
   }
 
-  const total = chars.filter((c) => !/\s/.test(c)).length;
-  const kept = filteredChars.length;
-  const removed = total - kept;
+  const kept = filteredTokens.filter(
+    (t) => !isPageBreakToken(t) && !isLineBreakToken(t)
+  ).length;
+  const removed = totalContent - kept;
 
   return {
-    filtered: filteredChars.join(''),
-    stats: { total, kept, removed },
+    filtered: filteredTokens.join(''),
+    stats: { total: totalContent, kept, removed },
   };
 }
 
 export function reverseText(text: string): string {
-  return Array.from(text).reverse().join('');
+  const chars = extractContentChars(text);
+  return chars.reverse().join('');
 }
 
 export function shuffleText(text: string): string {
-  const chars = Array.from(text);
+  const chars = extractContentChars(text);
   for (let i = chars.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [chars[i], chars[j]] = [chars[j], chars[i]];
@@ -192,8 +203,8 @@ export function shuffleText(text: string): string {
 }
 
 export function interleaveText(text: string, interval: number = 2): string {
-  if (interval <= 1) return text;
-  const chars = Array.from(text);
+  const chars = extractContentChars(text);
+  if (interval <= 1) return chars.join('');
   const result: string[] = [];
   const groups: string[][] = [];
 

@@ -79,14 +79,23 @@ export default function TextInput() {
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="请输入要练习的文字..."
+        placeholder="请输入要练习的文字...&#10;&#10;使用 | 手动换行，使用 --- 手动换页"
         rows={5}
         className="w-full px-3 py-2.5 text-sm text-stone-700 bg-white border-2 border-stone-200 rounded-lg resize-none focus:outline-none focus:border-[#8B2E20]/50 focus:ring-2 focus:ring-[#8B2E20]/10 transition-all"
         style={{ fontFamily: 'inherit' }}
       />
-      <p className="text-xs text-stone-400 text-right">
-        共 {text.replace(/\s/g, '').length} 字
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-stone-400">
+          <span className="inline-block px-1.5 py-0.5 bg-stone-100 rounded font-mono text-[10px] mr-1">|</span>
+          换行
+          <span className="mx-1.5 text-stone-300">·</span>
+          <span className="inline-block px-1.5 py-0.5 bg-stone-100 rounded font-mono text-[10px] mr-1">---</span>
+          换页
+        </p>
+        <p className="text-xs text-stone-400 text-right">
+          共 {text.replace(/\s/g, '').replace(/\|/g, '').replace(/---/g, '').length} 字
+        </p>
+      </div>
     </div>
   );
 }

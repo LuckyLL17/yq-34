@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { CopybookConfig, TextType, GridType, DrawingPath, DrawingConfig, PageDrawingPaths, DifficultyLevel, StrokeAnimationState, HeaderFieldConfig, HeaderPosition, PaperTexture, CompletedCells, WatermarkConfig, WatermarkPosition, SortMode } from '@/types';
 import { DEFAULT_TEXTS } from '@/utils/presetTexts';
 import { filterByStrokeRange, applySortMode } from '@/utils/strokeCount';
+import { parseTextToPages } from '@/utils/textParser';
 
 interface CopybookState extends CopybookConfig, DrawingConfig {
   pagePaths: PageDrawingPaths;
@@ -318,10 +319,8 @@ export const useCopybookStore = create<CopybookState>((set, get) => ({
 
   getTotalValidCells: () => {
     const { text, colsPerRow, rows } = get();
-    const charsPerPage = colsPerRow * rows;
-    const validChars = Array.from(text).filter((ch) => ch !== '\n' && ch !== '\r' && ch !== '\t' && ch !== ' ').length;
-    const totalPages = Math.max(1, Math.ceil(validChars / charsPerPage));
-    return Math.min(validChars, totalPages * charsPerPage);
+    const parsed = parseTextToPages(text, colsPerRow, rows);
+    return parsed.totalChars;
   },
 
   getCompletedCellsCount: () => {

@@ -6,6 +6,7 @@ import type { CopybookConfig, HeaderPosition, HeaderFieldConfig, PaperTexture, W
 import GridCell from './GridCell';
 import PageDrawingCanvas from './PageDrawingCanvas';
 import { paperTextures } from '@/components/ConfigPanel/PaperTextureSelector';
+import { parseTextToPages, extractContentChars } from '@/utils/textParser';
 
 interface CopybookPreviewProps {
   className?: string;
@@ -92,34 +93,15 @@ const CopybookPreview = forwardRef<HTMLDivElement, CopybookPreviewProps>(
     const font = getFontById(config.fontId);
 
     const allChars = useMemo(() => {
-      const chars: string[] = [];
-      for (const ch of config.text) {
-        if (ch !== '\n' && ch !== '\r' && ch !== '\t' && ch !== ' ') {
-          chars.push(ch);
-        }
-      }
-      return chars;
+      return extractContentChars(config.text);
     }, [config.text]);
 
-    const charsPerPage = config.colsPerRow * config.rows;
-    const totalPages = Math.max(1, Math.ceil(allChars.length / charsPerPage));
+    const parsed = useMemo(() => {
+      return parseTextToPages(config.text, config.colsPerRow, config.rows);
+    }, [config.text, config.colsPerRow, config.rows]);
 
-    const pageGroups = useMemo(() => {
-      const groups: string[][][] = [];
-      for (let p = 0; p < totalPages; p++) {
-        const pageStart = p * charsPerPage;
-        const pageChars = allChars.slice(pageStart, pageStart + charsPerPage);
-        while (pageChars.length < charsPerPage) pageChars.push(' ');
-
-        const rows: string[][] = [];
-        for (let r = 0; r < config.rows; r++) {
-          const rStart = r * config.colsPerRow;
-          rows.push(pageChars.slice(rStart, rStart + config.colsPerRow));
-        }
-        groups.push(rows);
-      }
-      return groups;
-    }, [allChars, charsPerPage, config.colsPerRow, config.rows, totalPages]);
+    const pageGroups = parsed.pages;
+    const totalPages = pageGroups.length;
 
     const gridWidth = config.colsPerRow * config.cellSize;
     const gridHeight = config.rows * config.cellSize;
