@@ -5,11 +5,22 @@ import { createRoot, Root } from 'react-dom/client';
 import CopybookPreview from '@/components/Preview/CopybookPreview';
 import type { CopybookConfig, CopybookTemplate } from '@/types';
 
+export type PaperSize = 'a4' | 'a5' | 'letter' | 'legal';
+export type PageOrientation = 'portrait' | 'landscape';
+export type ExportFormat = 'pdf' | 'png' | 'jpg';
+export type ImageQuality = 'low' | 'medium' | 'high' | 'ultra';
+
 export interface ExportOptions {
   filename?: string;
   scale?: number;
   marginMm?: number;
   includeDrawing?: boolean;
+  paperSize?: PaperSize;
+  orientation?: PageOrientation;
+  format?: ExportFormat;
+  imageQuality?: ImageQuality;
+  pageRange?: 'all' | 'current' | [number, number];
+  currentPageIndex?: number;
 }
 
 export interface BatchExportOptions extends ExportOptions {
@@ -35,8 +46,10 @@ async function waitFontsReady(): Promise<void> {
 async function capturePage(
   element: HTMLElement,
   scale: number,
-  includeDrawing: boolean
-): Promise<{ dataUrl: string; width: number; height: number }> {
+  includeDrawing: boolean,
+  format: ExportFormat = 'pdf',
+  quality: ImageQuality = 'high'
+): Promise<{ canvas: HTMLCanvasElement; dataUrl: string; width: number; height: number }> {
   const canvas = await html2canvas(element, {
     scale,
     useCORS: true,
@@ -67,18 +80,33 @@ async function capturePage(
     },
   });
 
+  const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
+  const jpegQuality = JPEG_QUALITY[quality];
+
   return {
-    dataUrl: canvas.toDataURL('image/jpeg', 0.97),
+    canvas,
+    dataUrl: canvas.toDataURL(mimeType, jpegQuality),
     width: canvas.width,
     height: canvas.height,
   };
 }
 
-export async function exportCopybookToPdf(
+export async function exportCopybook(
   container: HTMLElement,
   options: ExportOptions = {}
 ): Promise<void> {
-  const { filename = '字帖.pdf', scale = 2, marginMm = 8, includeDrawing = true } = options;
+  const {
+    filename = '字帖',
+    scale,
+    marginMm = 8,
+    includeDrawing = true,
+    paperSize = 'a4',
+    orientation = 'portrait',
+    format = 'pdf',
+    imageQuality = 'high',
+    pageRange = 'all',
+    currentPageIndex = 0,
+  } = options;
 
   if (!container) {
     throw new Error('找不到要导出的元素');
@@ -98,52 +126,91 @@ export async function exportCopybookToPdf(
     throw new Error('未找到字帖页面');
   }
 
-  const pdf = new jsPDF({
-    orientation: 'p',
-    unit: 'mm',
-    format: 'a4',
-    compress: true,
-  });
+  const filteredPages = filterPageElements(pageElements, pageRange, currentPageIndex);
+  const actualScale = scale || QUALITY_SCALE[imageQuality];
+  const safeFilename = sanitizeFilename(filename);
 
-  const pageWidthMm = pdf.internal.pageSize.getWidth();
-  const pageHeightMm = pdf.internal.pageSize.getHeight();
-  const drawWidthMm = pageWidthMm - marginMm * 2;
-  const drawHeightMm = pageHeightMm - marginMm * 2;
+  if (format === 'pdf') {
+    const pdf = new jsPDF({
+      orientation,
+      unit: 'mm',
+      format: paperSize,
+      compress: true,
+    });
 
-  for (let i = 0; i < pageElements.length; i++) {
-    const pageEl = pageElements[i];
+    const { width: pageWidthMm, height: pageHeightMm } = getPaperDimensions(paperSize, orientation);
+    const drawWidthMm = pageWidthMm - marginMm * 2;
+    const drawHeightMm = pageHeightMm - marginMm * 2;
 
-    const { dataUrl, width: imgW, height: imgH } = await capturePage(
-      pageEl,
-      scale,
-      includeDrawing
-    );
+    for (let i = 0; i < filteredPages.length; i++) {
+      const pageEl = filteredPages[i];
 
-    if (i > 0) {
-      pdf.addPage('a4', 'p');
+      const { dataUrl, width: imgW, height: imgH } = await capturePage(
+        pageEl,
+        actualScale,
+        includeDrawing,
+        'pdf',
+        imageQuality
+      );
+
+      if (i > 0) {
+        pdf.addPage(paperSize, orientation);
+      }
+
+      const imgRatio = imgW / imgH;
+      const pageRatio = drawWidthMm / drawHeightMm;
+
+      let w: number, h: number, x: number, y: number;
+
+      if (imgRatio > pageRatio) {
+        w = drawWidthMm;
+        h = drawWidthMm / imgRatio;
+        x = marginMm;
+        y = marginMm + (drawHeightMm - h) / 2;
+      } else {
+        h = drawHeightMm;
+        w = drawHeightMm * imgRatio;
+        x = marginMm + (drawWidthMm - w) / 2;
+        y = marginMm;
+      }
+
+      const imgFormat = 'JPEG';
+      pdf.addImage(dataUrl, imgFormat, x, y, w, h, undefined, 'FAST');
     }
 
-    const imgRatio = imgW / imgH;
-    const pageRatio = drawWidthMm / drawHeightMm;
+    pdf.save(`${safeFilename}.pdf`);
+  } else {
+    for (let i = 0; i < filteredPages.length; i++) {
+      const pageEl = filteredPages[i];
+      const { dataUrl } = await capturePage(
+        pageEl,
+        actualScale,
+        includeDrawing,
+        format,
+        imageQuality
+      );
 
-    let w: number, h: number, x: number, y: number;
+      const link = document.createElement('a');
+      const pageIndex = Number(pageEl.getAttribute('data-page-index'));
+      const suffix = filteredPages.length > 1 ? `_第${pageIndex + 1}页` : '';
+      link.download = `${safeFilename}${suffix}.${format}`;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-    if (imgRatio > pageRatio) {
-      w = drawWidthMm;
-      h = drawWidthMm / imgRatio;
-      x = marginMm;
-      y = marginMm + (drawHeightMm - h) / 2;
-    } else {
-      h = drawHeightMm;
-      w = drawHeightMm * imgRatio;
-      x = marginMm + (drawWidthMm - w) / 2;
-      y = marginMm;
+      if (i < filteredPages.length - 1) {
+        await new Promise((r) => setTimeout(r, 300));
+      }
     }
-
-    pdf.addImage(dataUrl, 'JPEG', x, y, w, h, undefined, 'FAST');
   }
+}
 
-  pdf.save(filename);
+export async function exportCopybookToPdf(
+  container: HTMLElement,
+  options: ExportOptions = {}
+): Promise<void> {
+  return exportCopybook(container, { ...options, format: 'pdf' });
 }
 
 function createTemporaryContainer(): HTMLElement {
@@ -260,6 +327,62 @@ async function renderAndCaptureConfig(
 
 function sanitizeFilename(name: string): string {
   return name.replace(/[\\/:*?"<>|]/g, '_').trim() || '字帖';
+}
+
+const PAPER_SIZES_MM: Record<PaperSize, { width: number; height: number }> = {
+  a4: { width: 210, height: 297 },
+  a5: { width: 148, height: 210 },
+  letter: { width: 215.9, height: 279.4 },
+  legal: { width: 215.9, height: 355.6 },
+};
+
+const QUALITY_SCALE: Record<ImageQuality, number> = {
+  low: 1,
+  medium: 2,
+  high: 3,
+  ultra: 4,
+};
+
+const JPEG_QUALITY: Record<ImageQuality, number> = {
+  low: 0.7,
+  medium: 0.85,
+  high: 0.95,
+  ultra: 0.98,
+};
+
+function getPaperDimensions(
+  paperSize: PaperSize,
+  orientation: PageOrientation
+): { width: number; height: number } {
+  const size = PAPER_SIZES_MM[paperSize];
+  if (orientation === 'landscape') {
+    return { width: size.height, height: size.width };
+  }
+  return size;
+}
+
+function filterPageElements(
+  pageElements: HTMLElement[],
+  pageRange: ExportOptions['pageRange'],
+  currentPageIndex: number
+): HTMLElement[] {
+  if (pageRange === 'all' || !pageRange) {
+    return pageElements;
+  }
+  if (pageRange === 'current') {
+    const page = pageElements.find(
+      (el) => Number(el.getAttribute('data-page-index')) === currentPageIndex
+    );
+    return page ? [page] : pageElements.slice(0, 1);
+  }
+  if (Array.isArray(pageRange)) {
+    const [start, end] = pageRange;
+    return pageElements.filter((el) => {
+      const idx = Number(el.getAttribute('data-page-index'));
+      return idx >= start && idx <= end;
+    });
+  }
+  return pageElements;
 }
 
 export async function exportTemplatesToMergedPdf(

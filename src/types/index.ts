@@ -1,5 +1,7 @@
 export type TextType = 'number' | 'chinese' | 'english';
 
+export type WritingDirection = 'horizontal-ltr' | 'horizontal-rtl' | 'vertical-rtl' | 'vertical-ltr';
+
 export type SortMode = 'original' | 'reverse' | 'shuffle' | 'interleave';
 
 export type GridType = 'tian' | 'mi' | 'hui' | 'none';
@@ -43,6 +45,7 @@ export interface CopybookConfig {
   cellSize: number;
   colsPerRow: number;
   rows: number;
+  writingDirection: WritingDirection;
   fontColor: string;
   gridColor: string;
   showDashed: boolean;

@@ -48,6 +48,7 @@ function getTemplateConfigSnapshot(): CopybookConfig {
     cellSize: state.cellSize,
     colsPerRow: state.colsPerRow,
     rows: state.rows,
+    writingDirection: state.writingDirection,
     fontColor: state.fontColor,
     gridColor: state.gridColor,
     showDashed: state.showDashed,

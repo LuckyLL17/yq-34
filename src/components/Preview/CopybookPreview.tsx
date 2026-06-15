@@ -2,7 +2,7 @@ import { forwardRef, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useCopybookStore } from '@/store/useCopybookStore';
 import { getFontById } from '@/utils/fonts';
-import type { CopybookConfig, HeaderPosition, HeaderFieldConfig, PaperTexture, WatermarkConfig, TraceDisplayMode } from '@/types';
+import type { CopybookConfig, HeaderPosition, HeaderFieldConfig, PaperTexture, WatermarkConfig, TraceDisplayMode, WritingDirection } from '@/types';
 import GridCell from './GridCell';
 import PageDrawingCanvas from './PageDrawingCanvas';
 import { paperTextures } from '@/components/ConfigPanel/PaperTextureSelector';
@@ -31,6 +31,7 @@ const selector = (s: {
   cellSize: CopybookConfig['cellSize'];
   colsPerRow: CopybookConfig['colsPerRow'];
   rows: CopybookConfig['rows'];
+  writingDirection: WritingDirection;
   fontColor: CopybookConfig['fontColor'];
   gridColor: CopybookConfig['gridColor'];
   showDashed: CopybookConfig['showDashed'];
@@ -66,6 +67,7 @@ const selector = (s: {
   cellSize: s.cellSize,
   colsPerRow: s.colsPerRow,
   rows: s.rows,
+  writingDirection: s.writingDirection,
   fontColor: s.fontColor,
   gridColor: s.gridColor,
   showDashed: s.showDashed,
@@ -86,6 +88,10 @@ const selector = (s: {
 
 const LINE_NUMBER_WIDTH = 28;
 
+function isVerticalDirection(direction: WritingDirection): boolean {
+  return direction === 'vertical-rtl' || direction === 'vertical-ltr';
+}
+
 const CopybookPreview = forwardRef<HTMLDivElement, CopybookPreviewProps>(
   ({ className, overrideConfig }, ref) => {
     const storeConfig = useCopybookStore(useShallow(selector));
@@ -99,8 +105,8 @@ const CopybookPreview = forwardRef<HTMLDivElement, CopybookPreviewProps>(
     }, [config.text]);
 
     const parsed = useMemo(() => {
-      return parseTextToPages(config.text, config.colsPerRow, config.rows);
-    }, [config.text, config.colsPerRow, config.rows]);
+      return parseTextToPages(config.text, config.colsPerRow, config.rows, config.writingDirection);
+    }, [config.text, config.colsPerRow, config.rows, config.writingDirection]);
 
     const pageGroups = parsed.pages;
     const totalPages = pageGroups.length;

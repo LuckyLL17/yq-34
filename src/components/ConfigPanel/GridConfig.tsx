@@ -1,12 +1,20 @@
 import { useShallow } from 'zustand/react/shallow';
 import { useCopybookStore } from '@/store/useCopybookStore';
-import type { GridType, TraceDisplayMode } from '@/types';
+import type { GridType, TraceDisplayMode, WritingDirection } from '@/types';
+import { ArrowRight, ArrowLeft, ArrowDown, ArrowUpRight } from 'lucide-react';
 
 const gridTypes: { id: GridType; label: string }[] = [
   { id: 'tian', label: '田字格' },
   { id: 'mi', label: '米字格' },
   { id: 'hui', label: '回宫格' },
   { id: 'none', label: '无格线' },
+];
+
+const writingDirections: { id: WritingDirection; label: string; icon: React.ReactNode }[] = [
+  { id: 'horizontal-ltr', label: '横排从左到右', icon: <ArrowRight size={14} /> },
+  { id: 'horizontal-rtl', label: '横排从右到左', icon: <ArrowLeft size={14} /> },
+  { id: 'vertical-rtl', label: '竖排从右到左', icon: <ArrowDown size={14} /> },
+  { id: 'vertical-ltr', label: '竖排从左到右', icon: <ArrowUpRight size={14} /> },
 ];
 
 const traceDisplayModes: { id: TraceDisplayMode; label: string; hint: string }[] = [
@@ -22,6 +30,7 @@ export default function GridConfig() {
     cellSize,
     colsPerRow,
     rows,
+    writingDirection,
     showDashed,
     showTrace,
     traceOpacity,
@@ -30,6 +39,7 @@ export default function GridConfig() {
     setCellSize,
     setColsPerRow,
     setRows,
+    setWritingDirection,
     setShowDashed,
     setShowTrace,
     setTraceOpacity,
@@ -40,6 +50,7 @@ export default function GridConfig() {
       cellSize: s.cellSize,
       colsPerRow: s.colsPerRow,
       rows: s.rows,
+      writingDirection: s.writingDirection,
       showDashed: s.showDashed,
       showTrace: s.showTrace,
       traceOpacity: s.traceOpacity,
@@ -48,6 +59,7 @@ export default function GridConfig() {
       setCellSize: s.setCellSize,
       setColsPerRow: s.setColsPerRow,
       setRows: s.setRows,
+      setWritingDirection: s.setWritingDirection,
       setShowDashed: s.setShowDashed,
       setShowTrace: s.setShowTrace,
       setTraceOpacity: s.setTraceOpacity,
@@ -73,6 +85,29 @@ export default function GridConfig() {
                 }`}
               >
                 {g.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-semibold text-stone-700">书写方向</label>
+        <div className="grid grid-cols-2 gap-1.5">
+          {writingDirections.map((d) => {
+            const active = writingDirection === d.id;
+            return (
+              <button
+                key={d.id}
+                onClick={() => setWritingDirection(d.id)}
+                className={`py-2 px-2 text-xs font-medium rounded-md border transition-all duration-200 flex items-center gap-2 justify-center ${
+                  active
+                    ? 'border-[#8B2E20] bg-[#8B2E20] text-white shadow-sm'
+                    : 'border-stone-200 bg-white text-stone-500 hover:border-stone-300 hover:bg-stone-50'
+                }`}
+              >
+                {d.icon}
+                <span>{d.label}</span>
               </button>
             );
           })}

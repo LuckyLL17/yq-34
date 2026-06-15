@@ -1,3 +1,5 @@
+import type { WritingDirection } from '@/types';
+
 export const PAGE_BREAK = '---';
 export const LINE_BREAK = '|';
 
@@ -12,6 +14,10 @@ export function isPageBreakToken(token: string): boolean {
 
 export function isLineBreakToken(token: string): boolean {
   return token === LINE_BREAK;
+}
+
+function isVerticalDirection(direction: WritingDirection): boolean {
+  return direction === 'vertical-rtl' || direction === 'vertical-ltr';
 }
 
 export function tokenizeText(text: string): string[] {
@@ -40,34 +46,61 @@ export function tokenizeText(text: string): string[] {
 export function parseTextToPages(
   text: string,
   colsPerRow: number,
-  rows: number
+  rows: number,
+  writingDirection: WritingDirection = 'horizontal-ltr'
 ): ParsedText {
   const tokens = tokenizeText(text);
   const pages: string[][][] = [];
-  let currentPage: string[][] = [];
-  let currentRow: string[] = [];
   let totalChars = 0;
 
-  const flushRow = () => {
-    while (currentRow.length < colsPerRow) {
-      currentRow.push(' ');
+  const vertical = isVerticalDirection(writingDirection);
+  const primaryCount = vertical ? rows : colsPerRow;
+  const secondaryCount = vertical ? colsPerRow : rows;
+
+  let currentPage: string[][] = [];
+  let currentPrimary: string[] = [];
+
+  const flushPrimary = () => {
+    while (currentPrimary.length < primaryCount) {
+      currentPrimary.push(' ');
     }
-    currentPage.push(currentRow);
-    currentRow = [];
+    currentPage.push(currentPrimary);
+    currentPrimary = [];
   };
 
   const flushPage = () => {
-    if (currentRow.length > 0) {
-      flushRow();
+    if (currentPrimary.length > 0) {
+      flushPrimary();
     }
-    while (currentPage.length < rows) {
-      const emptyRow: string[] = [];
-      for (let c = 0; c < colsPerRow; c++) {
-        emptyRow.push(' ');
+    while (currentPage.length < secondaryCount) {
+      const emptyLine: string[] = [];
+      for (let i = 0; i < primaryCount; i++) {
+        emptyLine.push(' ');
       }
-      currentPage.push(emptyRow);
+      currentPage.push(emptyLine);
     }
-    pages.push(currentPage);
+
+    let finalPage = currentPage;
+
+    if (writingDirection === 'horizontal-rtl') {
+      finalPage = currentPage.map(row => [...row].reverse());
+    } else if (writingDirection === 'vertical-rtl') {
+      finalPage = [...currentPage].reverse();
+    }
+
+    if (vertical) {
+      const transposed: string[][] = [];
+      for (let i = 0; i < primaryCount; i++) {
+        const newRow: string[] = [];
+        for (let j = 0; j < secondaryCount; j++) {
+          newRow.push(finalPage[j]?.[i] || ' ');
+        }
+        transposed.push(newRow);
+      }
+      finalPage = transposed;
+    }
+
+    pages.push(finalPage);
     currentPage = [];
   };
 
@@ -78,25 +111,25 @@ export function parseTextToPages(
     }
 
     if (isLineBreakToken(token)) {
-      flushRow();
-      if (currentPage.length >= rows) {
+      flushPrimary();
+      if (currentPage.length >= secondaryCount) {
         flushPage();
       }
       continue;
     }
 
-    if (currentRow.length >= colsPerRow) {
-      flushRow();
-      if (currentPage.length >= rows) {
+    if (currentPrimary.length >= primaryCount) {
+      flushPrimary();
+      if (currentPage.length >= secondaryCount) {
         flushPage();
       }
     }
 
-    currentRow.push(token);
+    currentPrimary.push(token);
     totalChars++;
   }
 
-  if (currentRow.length > 0 || currentPage.length > 0) {
+  if (currentPrimary.length > 0 || currentPage.length > 0) {
     flushPage();
   }
 

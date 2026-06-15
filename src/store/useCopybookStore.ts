@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CopybookConfig, TextType, GridType, DrawingPath, DrawingConfig, PageDrawingPaths, DifficultyLevel, StrokeAnimationState, HeaderFieldConfig, HeaderPosition, PaperTexture, CompletedCells, WatermarkPosition, SortMode, TraceDisplayMode, ColorTheme } from '@/types';
+import type { CopybookConfig, TextType, GridType, DrawingPath, DrawingConfig, PageDrawingPaths, DifficultyLevel, StrokeAnimationState, HeaderFieldConfig, HeaderPosition, PaperTexture, CompletedCells, WatermarkPosition, SortMode, TraceDisplayMode, ColorTheme, WritingDirection } from '@/types';
 import { DEFAULT_TEXTS } from '@/utils/presetTexts';
 import { filterByStrokeRange, applySortMode } from '@/utils/strokeCount';
 import { parseTextToPages } from '@/utils/textParser';
@@ -22,6 +22,7 @@ interface CopybookState extends CopybookConfig, DrawingConfig {
   setCellSize: (size: number) => void;
   setColsPerRow: (cols: number) => void;
   setRows: (rows: number) => void;
+  setWritingDirection: (direction: WritingDirection) => void;
   setFontColor: (color: string) => void;
   setGridColor: (color: string) => void;
   setShowDashed: (show: boolean) => void;
@@ -78,6 +79,7 @@ const DEFAULT_CONFIG: CopybookConfig & DrawingConfig = {
   cellSize: 64,
   colsPerRow: 10,
   rows: 14,
+  writingDirection: 'horizontal-ltr',
   fontColor: '#3D2C1F',
   gridColor: '#D4A574',
   showDashed: true,
@@ -177,6 +179,7 @@ export const useCopybookStore = create<CopybookState>((set, get) => ({
   setCellSize: (cellSize) => set({ cellSize: Math.max(32, Math.min(120, cellSize)) }),
   setColsPerRow: (colsPerRow) => set({ colsPerRow: Math.max(4, Math.min(20, colsPerRow)), completedCells: {} }),
   setRows: (rows) => set({ rows: Math.max(4, Math.min(30, rows)), completedCells: {} }),
+  setWritingDirection: (writingDirection) => set({ writingDirection, completedCells: {} }),
   setFontColor: (fontColor) => set({ fontColor }),
   setGridColor: (gridColor) => set({ gridColor }),
   setShowDashed: (showDashed) => set({ showDashed }),
@@ -322,8 +325,8 @@ export const useCopybookStore = create<CopybookState>((set, get) => ({
   clearCompletedCells: () => set({ completedCells: {} }),
 
   getTotalValidCells: () => {
-    const { text, colsPerRow, rows } = get();
-    const parsed = parseTextToPages(text, colsPerRow, rows);
+    const { text, colsPerRow, rows, writingDirection } = get();
+    const parsed = parseTextToPages(text, colsPerRow, rows, writingDirection);
     return parsed.totalChars;
   },
 
