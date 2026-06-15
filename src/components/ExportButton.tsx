@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useShallow } from 'zustand/react/shallow';
 import {
   RotateCcw,
@@ -279,8 +280,8 @@ export default function ExportButton({ previewRef, onCheckinSuccess }: ExportBut
         )}
       </div>
 
-      {showSettings && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {showSettings && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setShowSettings(false)}
@@ -465,7 +466,10 @@ export default function ExportButton({ previewRef, onCheckinSuccess }: ExportBut
                 取消
               </button>
               <button
-                onClick={() => handleQuickExport('original')}
+                onClick={() => {
+                  setShowSettings(false);
+                  handleQuickExport('original');
+                }}
                 className="flex-1 py-2.5 text-sm font-semibold text-white bg-[#8B2E20] rounded-lg hover:bg-[#7a281c] transition-colors flex items-center justify-center gap-2"
               >
                 <FileDown size={16} />
@@ -473,7 +477,8 @@ export default function ExportButton({ previewRef, onCheckinSuccess }: ExportBut
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
