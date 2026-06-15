@@ -196,8 +196,14 @@ export default function GridCell({
     return null;
   };
 
-  const shouldShowTrace = overrideShowTrace !== undefined ? overrideShowTrace : showTrace;
-  const opacity = !isEmpty && shouldShowTrace ? traceOpacity : 0;
+  let opacity = 0;
+  if (isEmpty) {
+    opacity = 0;
+  } else if (overrideShowTrace !== undefined) {
+    opacity = overrideShowTrace ? traceOpacity : 0;
+  } else {
+    opacity = showTrace ? traceOpacity : 0;
+  }
 
   return (
     <div
